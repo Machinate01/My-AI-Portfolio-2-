@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
+st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
@@ -40,27 +40,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Initialize Session State (ระบบความจำ & ข้อมูลเริ่มต้น) ---
+# --- 2. Initialize Session State (Sniper Default Data) ---
 
-# 2.1 Portfolio Data
+# 2.1 Portfolio Data (AAPL, PLTR, TSM, LLY)
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = [
-        {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
-        {"Ticker": "NVDA", "Category": "Growth", "Avg Cost": 178.7260, "Qty": 0.3351499},
-        {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 274.9960, "Qty": 0.1118198},
-        {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 330.2129, "Qty": 0.2419045},
-        {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 961.8167, "Qty": 0.0707723},
-        {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 628.1220, "Qty": 0.0614849},
+        {"Ticker": "AAPL", "Category": "Growth", "Avg Cost": 240.2191, "Qty": 0.6695555},
+        {"Ticker": "PLTR", "Category": "Growth", "Avg Cost": 170.1280, "Qty": 0.5868523},
+        {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 281.3780, "Qty": 0.3548252},
+        {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 908.8900, "Qty": 0.0856869},
     ]
 
 # 2.2 Watchlist Data
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist = [
-        "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
-        "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "KO", "PG", "WM", "UBER", "SCHD"
+        "AMZN", "NVDA", "V", "VOO", "GOOGL", "META", "MSFT", "TSLA", 
+        "WBD", "AMD", "AVGO", "IREN", "RKLB", "UBER", "CDNS", "WM"
     ]
 
-# 2.3 Weekly Note Data (บทความวิเคราะห์)
+# 2.3 Weekly Note Data
 if 'weekly_note' not in st.session_state:
     st.session_state.weekly_note = """* **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
     * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ
@@ -73,7 +71,8 @@ if 'weekly_note' not in st.session_state:
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
     st.header("💼 Wallet & Management")
-    cash_balance_usd = st.number_input("Cash Flow ($)", value=90.00, step=10.0, format="%.2f")
+    # Default Cash for Sniper Port = 400
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=400.00, step=10.0, format="%.2f")
     
     st.divider()
     
@@ -132,7 +131,7 @@ prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
     "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
     "TSLA": "A+", "V": "A+", "MA": "A+", "LLY": "A+", "JNJ": "A+", "BRK.B": "A+", "PG": "B+", "KO": "B+",
-    "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A", "SCHD": "A",
+    "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A", "SCHD": "A", "CDNS": "S",
     "ISRG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+", "ASTS": "B+", "EOSE": "B+",
     "ADBE": "B", "UBER": "B", "HOOD": "B", "DASH": "B", "BABA": "B", "CRWV": "B", "MU": "B", "PATH": "C",
     "TTD": "C", "LULU": "C", "CMG": "C", "DUOL": "C", "PDD": "C", "ORCL": "C", "WBD": "Hold",
@@ -281,7 +280,7 @@ try:
         return [''] * len(s)
 
     # --- 8. UI Display ---
-    st.title("🔭 My Portfolio & Watchlist") 
+    st.title("🔭 Sniper Portfolio & Watchlist") 
     st.caption(f"Last Update (BKK Time): {target_date_str} | Data Source: Yahoo Finance")
 
     c1, c2, c3, c4 = st.columns(4)
@@ -319,7 +318,6 @@ try:
                 * **> 70:** **สีแดง** (Overbought / น่าขาย)
                 """)
         
-        # [NEW TITLE HERE]
         with st.expander("📅 Weekly Analysis & Notes : https://web.facebook.com/chaodoi.diary : ปฏิทินข้อมูลเศรษฐกิจที่สำคัญและการรายงานผลประกอบการที่น่าสนใจในสัปดาห์นี้", expanded=True):
             tab_view, tab_edit = st.tabs(["👁️ View", "✏️ Edit"])
             
@@ -452,7 +450,7 @@ try:
                 .map(color_diff_s1_logic, subset=['Diff S1'])
                 .map(color_tier, subset=['Tier'])
                 .map(color_rsi, subset=['RSI'])
-                .map(color_text, subset=['Upside']), 
+                .map(color_text, subset=['Upside', '% Day']), # Applied color to % Day
                 column_config={
                     "Display Signal": st.column_config.Column("Status", width="medium"),
                     "Tier": st.column_config.Column("Tier", width="small"),
