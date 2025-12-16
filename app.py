@@ -52,7 +52,7 @@ try:
         "VOO": "ETF", "QQQM": "ETF"
     }
 
-    # รวม Ticker ทั้งหมด
+    # รวม Ticker ทั้งหมดเพื่อดึงข้อมูลทีเดียว
     port_tickers = [item['Ticker'] for item in my_portfolio_data]
     all_tickers = list(set(port_tickers + my_watchlist_tickers))
 
@@ -60,6 +60,7 @@ try:
     @st.cache_data(ttl=60, show_spinner="Fetching Real-time Market Data...") 
     def get_realtime_data(tickers_list):
         data_dict = {}
+        
         try:
             df_hist = yf.download(tickers_list, period="2y", group_by='ticker', auto_adjust=True, threads=True)
         except Exception as e:
@@ -74,38 +75,46 @@ try:
                     df_t = df_hist.copy()
 
                 df_t = df_t.dropna()
-                if df_t.empty or len(df_t) < 200:
-                    data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
+                if df_t.empty or len(df_t) < 200: 
+                    data_dict[ticker] = {
+                        "Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0
+                    }
                     continue
 
-                # 1. Price
+                # 1. Price Data
                 current_price = df_t['Close'].iloc[-1]
                 prev_close = df_t['Close'].iloc[-2]
                 
-                # 2. Indicators
+                # 2. Calculate Indicators
                 df_t['EMA50'] = df_t['Close'].ewm(span=50, adjust=False).mean()
                 df_t['EMA200'] = df_t['Close'].ewm(span=200, adjust=False).mean()
                 
-                # RSI
+                # RSI (14)
                 delta = df_t['Close'].diff()
                 gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                 rs = gain / loss
                 df_t['RSI'] = 100 - (100 / (1 + rs))
 
-                # Sell Levels
+                # Dynamic Sell Levels
                 df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
                 df_t['STD20'] = df_t['Close'].rolling(window=20).std()
                 sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1]
                 sell_r2 = df_t['Close'].iloc[-252:].max()
 
+                ema50 = df_t['EMA50'].iloc[-1]
+                ema200 = df_t['EMA200'].iloc[-1]
+                rsi_val = df_t['RSI'].iloc[-1]
+
                 data_dict[ticker] = {
                     "Price": current_price, "PrevClose": prev_close,
-                    "EMA50": df_t['EMA50'].iloc[-1], "EMA200": df_t['EMA200'].iloc[-1], 
-                    "RSI": df_t['RSI'].iloc[-1], "Sell1": sell_r1, "Sell2": sell_r2
+                    "EMA50": ema50, "EMA200": ema200, "RSI": rsi_val,
+                    "Sell1": sell_r1, "Sell2": sell_r2
                 }
             except Exception as e:
-                data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
+                data_dict[ticker] = {
+                    "Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0
+                }
                 
         return data_dict
 
@@ -115,7 +124,7 @@ try:
 
     market_data = get_realtime_data(all_tickers)
 
-    # --- 4. ประมวลผลข้อมูล (Processing) ---
+    # --- 4. คำนวณพอร์ต (Processing) ---
     df = pd.DataFrame(my_portfolio_data)
     
     df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
@@ -158,7 +167,6 @@ try:
 
     col_mid_left, col_mid_right = st.columns([2, 1])
     with col_mid_left:
-        # [UPDATED STRATEGY NOTE]
         with st.expander("🧠 Strategy: EMA Indicator & Diff S1 & RSI Coloring", expanded=False):
             st.markdown("""
             * **📊 EMA Indicator Levels (Real-time):**
@@ -187,14 +195,27 @@ try:
             """)
 
     with col_mid_right:
+        # [UPDATED PIE CHART]
+        st.subheader("Asset Allocation (Including Cash)")
+        
         labels = list(df['Ticker']) + ['CASH 💵']
         values = list(df['Value USD']) + [cash_balance_usd]
-        colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
+        # Colors list expanded
+        colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
+        
         fig_pie = go.Figure(data=[go.Pie(
-            labels=labels, values=values, hole=.5, marker_colors=colors, textinfo='label+percent', textfont_size=14
+            labels=labels, values=values, hole=.5, 
+            marker_colors=colors, 
+            textinfo='label+percent', 
+            textposition='inside', # Force labels inside
+            textfont=dict(size=14, color='white')
         )])
-        fig_pie.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250, showlegend=True,
-            legend=dict(font=dict(size=10), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+        
+        fig_pie.update_layout(
+            margin=dict(t=0, b=0, l=0, r=0), 
+            height=320, # Increased height to fill the column
+            showlegend=False # Hide legend to maximize chart size
+        )
         st.plotly_chart(fig_pie, use_container_width=True)
 
     st.markdown("---")
@@ -206,21 +227,16 @@ try:
         if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
     
-    # [Diff S1 Logic]
     def color_diff_s1_logic(val):
         if isinstance(val, (int, float)):
-            if val < 0: return 'color: #28a745; font-weight: bold;' # เขียวเข้ม (IN ZONE)
-            elif 0 <= val <= 0.02: return 'color: #90EE90;' # เขียวอ่อน (ALERT)
-            else: return 'color: #dc3545;' # แดง (WAIT)
+            if val < 0: return 'color: #28a745; font-weight: bold;' 
+            elif 0 <= val <= 0.02: return 'color: #90EE90;' 
+            else: return 'color: #dc3545;' 
         return ''
 
-    # [RSI Logic]
     def color_rsi(val):
-        try:
-            v = float(val)
-            if v >= 70: return 'color: #dc3545; font-weight: bold;' # Red
-            if v <= 30: return 'color: #28a745; font-weight: bold;' # Green
-        except: pass
+        if val >= 70: return 'color: #dc3545; font-weight: bold;'
+        if val <= 30: return 'color: #28a745; font-weight: bold;'
         return ''
 
     def format_arrow(val):
@@ -306,12 +322,6 @@ try:
             elif "ALERT" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
             elif "PROFIT" in s['Signal']: return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
             return [''] * len(s)
-        
-        def color_tier(val):
-            if val == "S+": return 'color: #ffd700; font-weight: bold;' 
-            if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
-            if "A" in val: return 'color: #cd7f32; font-weight: bold;' 
-            return ''
 
         st.dataframe(
             df_watch.style.format({
