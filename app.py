@@ -11,34 +11,13 @@ import plotly.graph_objects as go
 # --- 1. ตั้งค่าหน้าเว็บ ---
 st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
-# [EDIT] CSS ปรับขนาดตัวอักษรให้ใหญ่และชัดเจนขึ้น
+# CSS ปรับแต่ง (คงเดิมตามที่คุณชอบ)
 st.markdown("""
 <style>
-    /* ปรับขนาดฟอนต์ทั้งหน้าเว็บ */
-    html, body, [class*="css"] {
-        font-family: 'sans-serif';
-    }
-    
-    /* ปรับขนาดตัวเลขใน Scorecard */
-    [data-testid="stMetricValue"] { 
-        font-size: 2.2rem !important; 
-        font-weight: 800; 
-    }
-    
-    /* ปรับขนาดตัวหนังสือในตาราง (DataFrame) */
-    div[data-testid="stDataFrame"] p { 
-        font-size: 1.15rem !important; 
-        font-family: 'Courier New', monospace; /* ใช้ฟอนต์ที่อ่านตัวเลขง่าย */
-    }
-    
-    /* ปรับหัวข้อ */
-    h3 { 
-        padding-top: 0.5rem; 
-        border-bottom: 3px solid #444; 
-        padding-bottom: 0.5rem;
-        font-size: 1.5rem !important;
-    }
-    
+    html, body, [class*="css"] { font-family: 'sans-serif'; }
+    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 800; }
+    div[data-testid="stDataFrame"] p { font-size: 1.15rem !important; font-family: 'Courier New', monospace; }
+    h3 { padding-top: 0.5rem; border-bottom: 3px solid #444; padding-bottom: 0.5rem; font-size: 1.5rem !important; }
     .stAlert { margin-top: 1rem; }
 </style>
 """, unsafe_allow_html=True)
@@ -124,7 +103,7 @@ def get_all_data(portfolio_data, watchlist_tickers):
     port_tickers = [item['Ticker'] for item in portfolio_data]
     all_tickers = list(set(port_tickers + watchlist_tickers))
     
-    # Mock Data
+    # Mock Data for consistency
     simulated_prices = {
         "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
         "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
@@ -196,7 +175,6 @@ total_gain_usd = df['Total Gain USD'].sum()
 total_day_change_usd = df['Day Change USD'].sum()
 
 # --- 5. แสดงผล (UI) ---
-# [EDIT] เปลี่ยนชื่อหัวข้อตามที่ขอ
 st.title("🔭 My Portfolio & Watchlist") 
 st.caption(f"Last Update (BKK Time): {target_date_str}")
 
@@ -206,23 +184,54 @@ col_m2.metric("🌊 Cash Pool", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
 col_m3.metric("📈 Unrealized G/L", f"${total_gain_usd:,.2f}", f"Invested: ${total_invested_usd:,.0f}")
 col_m4.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_change_usd/total_invested_usd*100):+.2f}%")
 
-with st.expander("🧠 Strategy Transformation: The Balanced Sniper (2025)", expanded=True):
-    st.markdown("""
-    * **🛡️ Main Port Structure:** แบ่งเป็น 2 กองทัพชัดเจน
-        * **Growth Engine:** NVDA, TSM, AMZN (เน้นวิ่งแรง)
-        * **Defensive Wall:** V, LLY, VOO (เน้นยืนระยะ)
-    * **🌊 Dime Tactic (ใช้เงิน $90 ให้คุ้ม):**
-        * ดูช่อง **Diff S1** ในตารางพอร์ต ถ้าตัวไหนลงมาใกล้ **0% หรือติดลบ** ให้ใช้เศษเงินทยอย DCA เพิ่ม
-    * **⚠️ Sniper Watchlist Warning:** * กลุ่ม **Space (RKLB/ASTS)** และ **Energy (IREN/EOSE)** ผันผวนสูงมาก 
-        * **ห้ามไล่ราคา!** รอให้เข้าโซนแนวรับ (Diff S1 ต่ำๆ) เท่านั้น ค่อยยิงไม้เล็กๆ
-    """)
+st.markdown("---")
+
+# --- Layout ใหม่: แถวกลาง (บทความ + กราฟ) ---
+# แบ่งคอลัมน์เป็น 2:1 (ซ้ายกว้างหน่อยสำหรับข้อความ, ขวาสำหรับกราฟ)
+col_mid_left, col_mid_right = st.columns([2, 1])
+
+with col_mid_left:
+    # 1. บทความกลยุทธ์
+    with st.expander("🧠 Strategy Transformation: The Balanced Sniper (2025)", expanded=True):
+        st.markdown("""
+        * **🛡️ Main Port Structure:** แบ่งเป็น 2 กองทัพชัดเจน
+            * **Growth Engine:** NVDA, TSM, AMZN (เน้นวิ่งแรง)
+            * **Defensive Wall:** V, LLY, VOO (เน้นยืนระยะ)
+        * **🌊 Dime Tactic (ใช้เงิน $90 ให้คุ้ม):**
+            * ดูช่อง **Diff S1** ในตารางพอร์ต ถ้าตัวไหนลงมาใกล้ **0% หรือติดลบ** ให้ใช้เศษเงินทยอย DCA เพิ่ม
+        * **⚠️ Sniper Watchlist Warning:** * กลุ่ม **Space (RKLB/ASTS)** และ **Energy (IREN/EOSE)** ผันผวนสูงมาก 
+            * **ห้ามไล่ราคา!** รอให้เข้าโซนแนวรับ (Diff S1 ต่ำๆ) เท่านั้น ค่อยยิงไม้เล็กๆ
+        """)
+
+with col_mid_right:
+    # 2. Asset Allocation Chart (ย้ายมาตรงนี้)
+    # st.subheader("📊 Asset Allocation") # เอาหัวข้อออกเพื่อให้ดูคลีน หรือใส่ก็ได้
+    labels = list(df['Ticker']) + ['CASH 💵']
+    values = list(df['Value USD']) + [cash_balance_usd]
+    colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
+    
+    fig_pie = go.Figure(data=[go.Pie(
+        labels=labels, values=values, hole=.5,
+        marker_colors=colors, textinfo='label+percent',
+        textfont_size=14
+    )])
+    # ปรับขนาดกราฟให้พอดีกับช่องขวา
+    fig_pie.update_layout(
+        margin=dict(t=10, b=10, l=10, r=10), 
+        height=250, # ลดความสูงลงนิดหน่อยให้สมดุลกับกล่องข้อความ
+        showlegend=True,
+        legend=dict(font=dict(size=10), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5) # เอา Legend ไปไว้ข้างล่าง
+    )
+    st.plotly_chart(fig_pie, use_container_width=True)
 
 st.markdown("---")
 
-col_main, col_side = st.columns([1.5, 2.5]) 
+# --- Layout ใหม่: แถวล่าง (พอร์ตซ้าย + Watchlist ขวา) ---
+# แบ่งคอลัมน์เป็น 1.3 : 2.7 (ให้ Watchlist กว้างหน่อยเพราะคอลัมน์เยอะ)
+col_bot_left, col_bot_right = st.columns([1.3, 2.7]) 
 
-# --- ส่วนซ้าย: Main Portfolio ---
-with col_main:
+# --- ส่วนซ้าย: Main Portfolio (Growth & Defensive) ---
+with col_bot_left:
     # Helper Functions
     def color_text(val):
         if isinstance(val, (int, float)):
@@ -240,7 +249,6 @@ with col_main:
     df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Current Price', 'Diff S1', '%Day Change', '%G/L', 'Value USD']].copy()
     df_display.columns = ['Ticker', 'Qty', 'Avg Cost', 'Price', 'Diff S1', '% Day', '% Total', 'Value ($)']
     
-    # [EDIT] ลบคำว่า 2.1 ออก
     st.subheader("🚀 Growth Engine") 
     growth_tickers = ["NVDA", "TSM", "AMZN"]
     df_growth = df_display[df_display['Ticker'].isin(growth_tickers)]
@@ -255,7 +263,6 @@ with col_main:
         hide_index=True, use_container_width=True
     )
 
-    # [EDIT] ลบคำว่า 2.2 ออก
     st.subheader("🛡️ Defensive Wall") 
     defensive_tickers = ["V", "LLY", "VOO"]
     df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)]
@@ -270,31 +277,8 @@ with col_main:
         hide_index=True, use_container_width=True
     )
 
-# --- ส่วนขวา: Asset Allocation (Moved here) & Watchlist ---
-with col_side:
-    # [EDIT] ย้าย Pie Chart มาไว้ด้านบนขวา เพื่อความสวยงามและ Balance
-    st.subheader("📊 Asset Allocation")
-    
-    labels = list(df['Ticker']) + ['CASH 💵']
-    values = list(df['Value USD']) + [cash_balance_usd]
-    colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
-    
-    fig_pie = go.Figure(data=[go.Pie(
-        labels=labels, values=values, hole=.5,
-        marker_colors=colors, textinfo='label+percent',
-        textfont_size=16 # เพิ่มขนาดตัวอักษรในกราฟ
-    )])
-    fig_pie.add_annotation(x=0.5, y=0.5, text=f"Total<br>${total_equity_usd:,.0f}", showarrow=False, font=dict(size=18, color="white", weight="bold"))
-    fig_pie.update_layout(
-        margin=dict(t=10, b=10, l=10, r=10), 
-        height=350, 
-        showlegend=True,
-        legend=dict(font=dict(size=14)) # เพิ่มขนาดตัวอักษร Legend
-    )
-    st.plotly_chart(fig_pie, use_container_width=True)
-    
-    st.markdown("---")
-
+# --- ส่วนขวา: Watchlist (Moved here) ---
+with col_bot_right:
     st.subheader("🎯 Sniper Watchlist (Fractional Unlocked)")
     
     watchlist_data = []
