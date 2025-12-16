@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 # --- 1. ตั้งค่าหน้าเว็บ ---
 st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
-# CSS ปรับแต่ง (New Layout & Colors)
+# CSS ปรับแต่ง
 st.markdown("""
 <style>
     html, body, [class*="css"] { font-family: 'sans-serif'; }
@@ -26,7 +26,7 @@ st.markdown("""
 if st.button('🔄 Refresh Data (Real-time)'):
     st.rerun()
 
-# --- 2. ข้อมูลพอร์ต (Updated: 16 Dec 2025) ---
+# --- 2. ข้อมูลพอร์ต ---
 start_date_str = "02/10/2025" 
 cash_balance_usd = 90.00 
 
@@ -50,7 +50,7 @@ my_portfolio_data = [
     {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",  "Avg Cost": 274.9960, "Qty": 0.1118198},
 ]
 
-# 2.2 Watchlist Tickers (Added SCHD)
+# 2.2 Watchlist Tickers
 my_watchlist_tickers = [
     "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
     "RKLB", "ASTS", 
@@ -58,7 +58,7 @@ my_watchlist_tickers = [
     "KO", "PG", "WM", "UBER", "SCHD"
 ] 
 
-# PRB Tier Mapping (Added SCHD)
+# PRB Tier Mapping
 prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
     "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
@@ -70,17 +70,15 @@ prb_tiers = {
     "VOO": "ETF", "QQQM": "ETF"
 }
 
-# 2.3 แนวรับ-แนวต้านทางเทคนิค (Updated to 4 Levels: Sell2, Sell1, Buy1, Buy2)
-# Logic: Buy1=EMA50 (Trend), Buy2=EMA200 (Floor), Sell1=Resistance, Sell2=Moon
+# 2.3 แนวรับ-แนวต้านทางเทคนิค (4 Levels: Sell2, Sell1, Buy1, Buy2)
 tech_levels = {
-    # Ticker: [Sell Lv.2, Sell Lv.1, Buy Lv.1 (EMA50), Buy Lv.2 (EMA200)]
     "AMZN": [250, 235, 216, 195], 
     "AAPL": [300, 285, 260, 240], 
     "GOOGL": [340, 320, 290, 270], 
     "NVDA": [210, 190, 165, 145], 
     "META": [720, 680, 630, 580], 
     "MSFT": [520, 490, 460, 430], 
-    "TSLA": [550, 500, 400, 350], # Wide range for volatility
+    "TSLA": [550, 500, 400, 350], 
     "PLTR": [220, 200, 175, 150],
     "AMD": [250, 230, 200, 180], 
     "AVGO": [380, 360, 330, 300],
@@ -98,7 +96,7 @@ tech_levels = {
     "KO": [80, 75, 68, 64],
     "PG": [165, 155, 142, 135],
     "CRWV": [80, 70, 55, 45],
-    "SCHD": [32, 30, 28, 26], # Example for SCHD
+    "SCHD": [32, 30, 28, 26],
     "SMH": [380, 360, 340, 320],
     "QQQ": [640, 620, 590, 560]
 }
@@ -109,7 +107,6 @@ def get_all_data(portfolio_data, watchlist_tickers):
     port_tickers = [item['Ticker'] for item in portfolio_data]
     all_tickers = list(set(port_tickers + watchlist_tickers))
     
-    # Mock Data (Based on updated prices)
     simulated_prices = {
         "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
         "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
@@ -158,7 +155,7 @@ df = pd.DataFrame(my_portfolio_data)
 df['Current Price'] = df['Ticker'].map(fetched_prices)
 df['Prev Close'] = df['Ticker'].map(prev_closes)
 df['Value USD'] = df['Qty'] * df['Current Price']
-df['Total Cost'] = df['Qty'] * df['Avg Cost'] # [NEW] Total Cost Column
+df['Total Cost'] = df['Qty'] * df['Avg Cost']
 df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
 df['%G/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost']) 
 df['Day Change USD'] = (df['Current Price'] - df['Prev Close']) * df['Qty']
@@ -173,13 +170,12 @@ def calculate_diff_s1(row):
         return (price - s1) / s1
     return 0
 
-# Get Levels for DataFrame
 def get_levels(row):
     levels = tech_levels.get(row['Ticker'], [0, 0, 0, 0])
-    return pd.Series([levels[2], levels[3], levels[1], levels[0]]) # Buy1, Buy2, Sell1, Sell2
+    return pd.Series([levels[2], levels[3], levels[1], levels[0]])
 
 df['Diff S1'] = df.apply(calculate_diff_s1, axis=1)
-df[['Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2']] = df.apply(get_levels, axis=1) # [NEW] Add Levels to Main Port
+df[['Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2']] = df.apply(get_levels, axis=1)
 
 total_invested_usd = df['Value USD'].sum()
 total_equity_usd = total_invested_usd + cash_balance_usd 
@@ -199,9 +195,7 @@ col_m4.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_
 
 st.markdown("---")
 
-# --- Layout: แถวกลาง ---
 col_mid_left, col_mid_right = st.columns([2, 1])
-
 with col_mid_left:
     with st.expander("🧠 Strategy: Nasdaq 24/5 & EMA Indicators", expanded=True):
         st.markdown("""
@@ -212,96 +206,72 @@ with col_mid_left:
         * **🎯 New Watchlist:** เพิ่ม **SCHD** (Dividend Growth) เพื่อกระจายความเสี่ยง
         * **🌊 Action:** ใช้เงินสด $90 รอช้อนที่ **Buy Lv.1** ถ้าหลุดให้รอ **Buy Lv.2**
         """)
-
 with col_mid_right:
     labels = list(df['Ticker']) + ['CASH 💵']
     values = list(df['Value USD']) + [cash_balance_usd]
     colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
-    
     fig_pie = go.Figure(data=[go.Pie(
-        labels=labels, values=values, hole=.5,
-        marker_colors=colors, textinfo='label+percent',
-        textfont_size=14
+        labels=labels, values=values, hole=.5, marker_colors=colors, textinfo='label+percent', textfont_size=14
     )])
-    fig_pie.update_layout(
-        margin=dict(t=10, b=10, l=10, r=10), 
-        height=250, 
-        showlegend=True,
-        legend=dict(font=dict(size=10), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
-    )
+    fig_pie.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250, showlegend=True,
+        legend=dict(font=dict(size=10), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
     st.plotly_chart(fig_pie, use_container_width=True)
 
 st.markdown("---")
 
-# --- Layout: แถวล่าง ---
 col_bot_left, col_bot_right = st.columns([1.3, 2.7]) 
 
-# --- ส่วนซ้าย: Main Portfolio ---
 with col_bot_left:
     def color_text(val):
         if isinstance(val, (int, float)):
             return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
-    
     def format_arrow(val):
         symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
         return f"{val:+.2%} {symbol}"
-
     def color_diff_s1_main(val):
         if val <= 0.02: return 'color: #28a745; font-weight: bold;'
         return ''
 
-    # [NEW] Updated columns with Total Cost and Levels
-    df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Total Cost', 'Price', 'Diff S1', '%Day Change', '%G/L', 'Value USD', 'Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2']].copy()
+    # [FIX] Select 'Current Price' instead of 'Price'
+    df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Total Cost', 'Current Price', 'Diff S1', '%Day Change', '%G/L', 'Value USD', 'Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2']].copy()
     
     st.subheader("🚀 Growth Engine") 
     growth_tickers = ["NVDA", "TSM", "AMZN"]
     df_growth = df_display[df_display['Ticker'].isin(growth_tickers)]
-    
     st.dataframe(
         df_growth.style.format({
-            "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Price": "${:.2f}",
-            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}",
+            "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
+            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value USD": "${:,.2f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
-        })
-        .map(color_text, subset=['% Day', '% Total'])
-        .map(color_diff_s1_main, subset=['Diff S1']),
+        }).map(color_text, subset=['% Day', '% Total']).map(color_diff_s1_main, subset=['Diff S1']),
         hide_index=True, use_container_width=True
     )
 
     st.subheader("🛡️ Defensive Wall") 
     defensive_tickers = ["V", "LLY", "VOO"]
     df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)]
-    
     st.dataframe(
         df_defensive.style.format({
-            "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Price": "${:.2f}",
-            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}",
+            "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
+            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value USD": "${:,.2f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
-        })
-        .map(color_text, subset=['% Day', '% Total'])
-        .map(color_diff_s1_main, subset=['Diff S1']),
+        }).map(color_text, subset=['% Day', '% Total']).map(color_diff_s1_main, subset=['Diff S1']),
         hide_index=True, use_container_width=True
     )
 
-# --- ส่วนขวา: Watchlist ---
 with col_bot_right:
     st.subheader("🎯 Sniper Watchlist (Fractional Unlocked)")
-    
     watchlist_data = []
     for t in sorted(list(set(my_watchlist_tickers))): 
         price = fetched_prices.get(t, 0)
         prev = prev_closes.get(t, 0)
-        change = price - prev
-        pct_change = (change / prev) if prev > 0 else 0
+        pct_change = (price - prev) / prev if prev > 0 else 0
         
-        levels = tech_levels.get(t, [0, 0, 0, 0]) # Get 4 Levels
-        s1 = levels[2] # Buy 1
-        
-        # Sniper Logic
+        levels = tech_levels.get(t, [0, 0, 0, 0]) 
+        s1 = levels[2] 
         signal = "4. Wait" 
         dist_to_s1 = 999.9
-        
         if s1 > 0:
             dist_to_s1 = (price - s1) / s1 * 100 
             if price <= s1: signal = "1. ✅ IN ZONE"
@@ -310,16 +280,8 @@ with col_bot_right:
             else: signal = "3. ➖ Wait"
         
         watchlist_data.append({
-            "Tier": prb_tiers.get(t, "-"),
-            "Ticker": t,
-            "Price": price,
-            "% Day": pct_change,
-            "Signal": signal, 
-            "Diff S1": dist_to_s1/100,
-            "Buy Lv.1": levels[2],
-            "Buy Lv.2": levels[3],
-            "Sell Lv.1": levels[1],
-            "Sell Lv.2": levels[0],
+            "Tier": prb_tiers.get(t, "-"), "Ticker": t, "Price": price, "% Day": pct_change, "Signal": signal, 
+            "Diff S1": dist_to_s1/100, "Buy Lv.1": levels[2], "Buy Lv.2": levels[3], "Sell Lv.1": levels[1], "Sell Lv.2": levels[0],
             "Display Signal": signal.split(". ")[1] 
         })
     
@@ -331,12 +293,10 @@ with col_bot_right:
         elif "ALERT" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
         elif "PROFIT" in s['Signal']: return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
         return [''] * len(s)
-    
     def color_dist_s1(val):
         if val < 0: return 'color: #dc3545; font-weight: bold;'
         elif 0 <= val <= 0.02: return 'color: #28a745; font-weight: bold;'
         return ''
-    
     def color_tier(val):
         if val == "S+": return 'color: #ffd700; font-weight: bold;' 
         if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
@@ -344,24 +304,16 @@ with col_bot_right:
         return ''
 
     st.dataframe(
-        df_watch.style
-        .format({
-            "Price": "${:.2f}",
-            "% Day": format_arrow,
-            "Diff S1": "{:+.1%}",
-            "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}",
-            "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
-        })
-        .apply(highlight_row, axis=1)
-        .map(color_dist_s1, subset=['Diff S1'])
-        .map(color_tier, subset=['Tier']),
+        df_watch.style.format({
+            "Price": "${:.2f}", "% Day": format_arrow, "Diff S1": "{:+.1%}",
+            "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
+        }).apply(highlight_row, axis=1).map(color_dist_s1, subset=['Diff S1']).map(color_tier, subset=['Tier']),
         column_config={
             "Display Signal": st.column_config.Column("Status", width="medium"),
             "Tier": st.column_config.Column("Tier", width="small"),
             "Ticker": st.column_config.Column("Symbol", width="small"),
             "Price": st.column_config.Column("Price", width="small"),
             "% Day": st.column_config.Column("% Day", width="small"),
-            "Signal": None,
             "Diff S1": st.column_config.Column("Diff S1", help="Distance to EMA 50"),
             "Buy Lv.1": st.column_config.Column("Buy (EMA50)"),
             "Buy Lv.2": st.column_config.Column("Buy (EMA200)"),
