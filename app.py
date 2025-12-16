@@ -50,7 +50,9 @@ st.markdown("""
 # --- 2. ข้อมูลพอร์ต (Portfolio Setup) ---
 try:
     start_date_str = "02/10/2025" 
-    cash_balance_usd = 90.00 
+   with st.sidebar:
+    st.header("💼 Wallet Settings")
+    cash_balance_usd = st.number_input("Cash Available ($)", value=90.00, step=10.0)
     now = datetime.utcnow() + timedelta(hours=7) 
     target_date_str = now.strftime("%d %B %Y %H:%M:%S")
 
@@ -392,3 +394,4 @@ try:
 
 except Exception as e:
     st.error(f"System Error: {e}")
+
