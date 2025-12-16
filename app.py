@@ -13,7 +13,7 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 2.0rem !important; font-weight: 800; }
     h3 { padding-top: 0.5rem; border-bottom: 2px solid #444; padding-bottom: 0.5rem; font-size: 1.4rem !important; }
     .stAlert { margin-top: 1rem; }
-    div[data-testid="stDataFrame"] p { font-size: 1.1rem !important; font-family: 'Courier New', monospace; }
+    div[data-testid="stDataFrame"] { width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -40,7 +40,7 @@ try:
         "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "KO", "PG", "WM", "UBER", "SCHD"
     ] 
 
-    # PRB Tier Mapping (Static Data)
+    # PRB Tier Mapping
     prb_tiers = {
         "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
         "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
@@ -63,7 +63,6 @@ try:
         
         # Download data for all tickers (1 Year History for EMA200)
         try:
-            # ใช้ Threads เพื่อความเร็ว
             df_hist = yf.download(tickers_list, period="2y", group_by='ticker', auto_adjust=True, threads=True)
         except Exception as e:
             st.error(f"Data Fetch Error: {e}")
@@ -71,13 +70,11 @@ try:
 
         for ticker in tickers_list:
             try:
-                # Handle Multi-index DataFrame from yfinance
                 if len(tickers_list) > 1:
                     df_t = df_hist[ticker].copy()
                 else:
                     df_t = df_hist.copy()
 
-                # Clean NaNs
                 df_t = df_t.dropna()
                 if df_t.empty: continue
 
@@ -86,7 +83,6 @@ try:
                 prev_close = df_t['Close'].iloc[-2]
                 
                 # 2. Calculate Indicators
-                # EMA
                 df_t['EMA50'] = df_t['Close'].ewm(span=50, adjust=False).mean()
                 df_t['EMA200'] = df_t['Close'].ewm(span=200, adjust=False).mean()
                 
@@ -97,53 +93,40 @@ try:
                 rs = gain / loss
                 df_t['RSI'] = 100 - (100 / (1 + rs))
 
-                # Dynamic Sell Levels
-                # Sell 1: Upper Bollinger Band (20, 2)
+                # Dynamic Sell Levels (BB & High)
                 df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
                 df_t['STD20'] = df_t['Close'].rolling(window=20).std()
                 sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1]
-                # Sell 2: 52-Week High
                 sell_r2 = df_t['Close'].iloc[-252:].max()
 
-                # Extract latest values
                 ema50 = df_t['EMA50'].iloc[-1]
                 ema200 = df_t['EMA200'].iloc[-1]
                 rsi_val = df_t['RSI'].iloc[-1]
 
-                # Store in Dictionary
                 data_dict[ticker] = {
-                    "Price": current_price,
-                    "PrevClose": prev_close,
-                    "EMA50": ema50,
-                    "EMA200": ema200,
-                    "RSI": rsi_val,
-                    "Sell1": sell_r1,
-                    "Sell2": sell_r2
+                    "Price": current_price, "PrevClose": prev_close,
+                    "EMA50": ema50, "EMA200": ema200, "RSI": rsi_val,
+                    "Sell1": sell_r1, "Sell2": sell_r2
                 }
             except Exception as e:
-                # Fallback if calculation fails
                 data_dict[ticker] = {
                     "Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0
                 }
                 
         return data_dict
 
-    # ปุ่ม Refresh จะ Trigger ฟังก์ชันนี้ใหม่เพราะ cache_data
     if st.button('🔄 Refresh Data (Real-time)'):
         st.cache_data.clear()
         st.rerun()
 
-    # Get Data
     market_data = get_realtime_data(all_tickers)
 
     # --- 4. คำนวณพอร์ต (Processing) ---
     df = pd.DataFrame(my_portfolio_data)
     
-    # Map Real-time Data
     df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
     df['PrevClose'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('PrevClose', 0))
     
-    # Financial Calcs
     df['Value USD'] = df['Qty'] * df['Current Price']
     df['Total Cost'] = df['Qty'] * df['Avg Cost']
     df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
@@ -151,15 +134,11 @@ try:
     df['Day Change USD'] = (df['Current Price'] - df['PrevClose']) * df['Qty']
     df['%Day Change'] = ((df['Current Price'] - df['PrevClose']) / df['PrevClose']) if df['PrevClose'].sum() > 0 else 0
 
-    # Tech Levels mapping
     def get_levels_series(ticker, price):
         data = market_data.get(ticker, {})
         buy1 = data.get('EMA50', 0)
         buy2 = data.get('EMA200', 0)
-        
-        # Calculate Diff S1 (Distance to EMA50)
         diff_s1 = (price - buy1) / buy1 if buy1 > 0 else 0
-        
         return pd.Series([buy1, buy2, data.get('Sell1', 0), data.get('Sell2', 0), diff_s1], 
                          index=['Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2', 'Diff S1'])
 
@@ -175,15 +154,14 @@ try:
     st.title("🔭 My Portfolio & Watchlist") 
     st.caption(f"Last Update (BKK Time): {target_date_str} | Data Source: Yahoo Finance")
 
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    col_m1.metric("💰 Total Value (USD)", f"${total_value:,.2f}", f"≈฿{total_value*33:,.0f}") # Approx THB
-    col_m2.metric("🌊 Cash Pool", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
-    col_m3.metric("📈 Unrealized G/L", f"${total_gain:,.2f}", f"Invested: ${total_invested:,.0f}")
-    col_m4.metric("📅 Day Change", f"${total_day_change:+.2f}", f"{(total_day_change/total_invested*100):+.2f}%")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("💰 Total Value (USD)", f"${total_value:,.2f}", f"≈฿{total_value*33:,.0f}")
+    c2.metric("🌊 Cash Pool", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
+    c3.metric("📈 Unrealized G/L", f"${total_gain:,.2f}", f"Invested: ${total_invested:,.0f}")
+    c4.metric("📅 Day Change", f"${total_day_change:+.2f}", f"{(total_day_change/total_invested*100):+.2f}%")
 
     st.markdown("---")
 
-    # Strategy Section
     col_mid_left, col_mid_right = st.columns([2, 1])
     with col_mid_left:
         with st.expander("🧠 Strategy: Nasdaq 24/5 & EMA Indicators", expanded=False):
@@ -193,8 +171,6 @@ try:
                 * **Buy Lv.2 (EMA 200):** จุดรับของถูก (Deep Value / Floor)
                 * **Sell Lv.1:** Upper Bollinger Band (แนวต้านระยะสั้น)
                 * **Sell Lv.2:** 52-Week High (จุดสูงสุดเดิม)
-            * **🎯 New Watchlist:** เพิ่ม **SCHD** (Dividend Growth)
-            * **🌊 Action:** ใช้เงินสด $90 รอช้อนที่ **Buy Lv.1** ถ้าหลุดให้รอ **Buy Lv.2**
             """)
         
         with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
@@ -221,21 +197,35 @@ try:
 
     st.markdown("---")
 
-    # Layout Tables (50:50)
     col_bot_left, col_bot_right = st.columns(2) 
+
+    # --- Styling Functions (NEW LOGIC) ---
+    def color_text(val):
+        if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
+        return ''
+    
+    # [UPDATED] Diff S1 Color Logic
+    def color_diff_s1_logic(val):
+        if isinstance(val, (int, float)):
+            if val < 0: # ติดลบ (ของถูก) -> เขียวเข้ม
+                return 'color: #28a745; font-weight: bold;' 
+            elif 0 <= val <= 0.02: # บวกเล็กน้อย -> เขียวปกติ
+                return 'color: #90EE90;' 
+            else: # บวกเยอะ -> แดง
+                return 'color: #dc3545;'
+        return ''
+
+    def color_rsi(val):
+        if val >= 70: return 'color: #dc3545; font-weight: bold;' # Red (Overbought)
+        if val <= 30: return 'color: #28a745; font-weight: bold;' # Green (Oversold)
+        return ''
+
+    def format_arrow(val):
+        symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
+        return f"{val:+.2%} {symbol}"
 
     # --- LEFT SIDE: Portfolio ---
     with col_bot_left:
-        def color_text(val):
-            if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
-            return ''
-        def format_arrow(val):
-            symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
-            return f"{val:+.2%} {symbol}"
-        def color_diff_s1_main(val):
-            if val <= 0.02: return 'color: #28a745; font-weight: bold;'
-            return ''
-
         df_display = df.copy() 
         
         st.subheader("🚀 Growth Engine") 
@@ -249,7 +239,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .map(color_text, subset=['%G/L', 'Total Gain USD'])
-            .map(color_diff_s1_main, subset=['Diff S1']),
+            .map(color_diff_s1_logic, subset=['Diff S1']), # Apply New Logic
             column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
             column_config={
                 "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
@@ -268,7 +258,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .map(color_text, subset=['%G/L', 'Total Gain USD'])
-            .map(color_diff_s1_main, subset=['Diff S1']),
+            .map(color_diff_s1_logic, subset=['Diff S1']), # Apply New Logic
             column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
             column_config={
                 "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
@@ -318,19 +308,6 @@ try:
             elif "ALERT" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
             elif "PROFIT" in s['Signal']: return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
             return [''] * len(s)
-        def color_dist_s1(val):
-            if val < 0: return 'color: #dc3545; font-weight: bold;'
-            elif 0 <= val <= 0.02: return 'color: #28a745; font-weight: bold;'
-            return ''
-        def color_tier(val):
-            if val == "S+": return 'color: #ffd700; font-weight: bold;' 
-            if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
-            if "A" in val: return 'color: #cd7f32; font-weight: bold;' 
-            return ''
-        def color_rsi(val):
-            if val >= 70: return 'color: #dc3545; font-weight: bold;' 
-            if val <= 30: return 'color: #28a745; font-weight: bold;' 
-            return ''
 
         st.dataframe(
             df_watch.style.format({
@@ -338,7 +315,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .apply(highlight_row, axis=1)
-            .map(color_dist_s1, subset=['Diff S1'])
+            .map(color_diff_s1_logic, subset=['Diff S1']) # Apply New Logic
             .map(color_tier, subset=['Tier'])
             .map(color_rsi, subset=['RSI']), 
             column_config={
