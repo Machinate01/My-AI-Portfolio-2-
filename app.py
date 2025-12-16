@@ -70,13 +70,16 @@ try:
 
         for ticker in tickers_list:
             try:
+                # Handle Multi-index DataFrame from yfinance
                 if len(tickers_list) > 1:
                     df_t = df_hist[ticker].copy()
                 else:
                     df_t = df_hist.copy()
 
                 df_t = df_t.dropna()
-                if df_t.empty: continue
+                if len(df_t) < 200: 
+                    # Not enough data for EMA200
+                    st.warning(f"Not enough data for {ticker}. Indicators might be unreliable.")
 
                 # 1. Price Data
                 current_price = df_t['Close'].iloc[-1]
@@ -103,6 +106,7 @@ try:
                 ema200 = df_t['EMA200'].iloc[-1]
                 rsi_val = df_t['RSI'].iloc[-1]
 
+                # Store in Dictionary
                 data_dict[ticker] = {
                     "Price": current_price, "PrevClose": prev_close,
                     "EMA50": ema50, "EMA200": ema200, "RSI": rsi_val,
@@ -134,11 +138,15 @@ try:
     df['Day Change USD'] = (df['Current Price'] - df['PrevClose']) * df['Qty']
     df['%Day Change'] = ((df['Current Price'] - df['PrevClose']) / df['PrevClose']) if df['PrevClose'].sum() > 0 else 0
 
+    # Dynamic Levels Mapping
     def get_levels_series(ticker, price):
         data = market_data.get(ticker, {})
         buy1 = data.get('EMA50', 0)
         buy2 = data.get('EMA200', 0)
+        
+        # Diff S1: (Price - Buy Lv.1) / Buy Lv.1
         diff_s1 = (price - buy1) / buy1 if buy1 > 0 else 0
+        
         return pd.Series([buy1, buy2, data.get('Sell1', 0), data.get('Sell2', 0), diff_s1], 
                          index=['Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2', 'Diff S1'])
 
@@ -171,6 +179,10 @@ try:
                 * **Buy Lv.2 (EMA 200):** จุดรับของถูก (Deep Value / Floor)
                 * **Sell Lv.1:** Upper Bollinger Band (แนวต้านระยะสั้น)
                 * **Sell Lv.2:** 52-Week High (จุดสูงสุดเดิม)
+            * **🎯 วิธีอ่านค่า Diff S1 แบบ Sniper:**
+                * **ค่าติดลบ (< 0%):** ✅ **IN ZONE** (ของถูก) - **สีเขียวเข้ม**
+                * **ค่าบวกเล็กน้อย (0% ถึง +2.0%):** 🟢 **ALERT** (เตรียมยิง) - **สีเขียวอ่อน**
+                * **ค่าบวกเยอะๆ (> +2.0%):** ➖ **Wait** (แพงไป) - **สีแดง**
             """)
         
         with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
@@ -204,28 +216,20 @@ try:
         if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
     
-    # [Diff S1 Logic]
+    # [FIXED LOGIC] Diff S1 Color Logic for all DataFrames
     def color_diff_s1_logic(val):
         if isinstance(val, (int, float)):
-            if val < 0: # ติดลบ (ของถูก) -> เขียวเข้ม
+            if val < 0: # ติดลบ (< 0%) -> เขียวเข้ม (IN ZONE)
                 return 'color: #28a745; font-weight: bold;' 
-            elif 0 <= val <= 0.02: # บวกเล็กน้อย (0% - 2%) -> เขียวอ่อน
+            elif 0 <= val <= 0.02: # บวกเล็กน้อย (0% ถึง 2.0%) -> เขียวอ่อน (ALERT)
                 return 'color: #90EE90;' 
-            elif val > 0.02: # บวกเยอะ (> 2%) -> แดง
+            else: # บวกเยอะ (> 2.0%) -> แดง (WAIT/แพง)
                 return 'color: #dc3545;'
         return ''
 
-    # [RSI Logic]
     def color_rsi(val):
         if val >= 70: return 'color: #dc3545; font-weight: bold;' # Red (Overbought)
         if val <= 30: return 'color: #28a745; font-weight: bold;' # Green (Oversold)
-        return ''
-    
-    # [Tier Logic - Added back]
-    def color_tier(val):
-        if val == "S+": return 'color: #ffd700; font-weight: bold;' 
-        if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
-        if "A" in val: return 'color: #cd7f32; font-weight: bold;' 
         return ''
 
     def format_arrow(val):
@@ -247,7 +251,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .map(color_text, subset=['%G/L', 'Total Gain USD'])
-            .map(color_diff_s1_logic, subset=['Diff S1']),
+            .map(color_diff_s1_logic, subset=['Diff S1']), # Apply Fixed Logic
             column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
             column_config={
                 "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
@@ -266,7 +270,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .map(color_text, subset=['%G/L', 'Total Gain USD'])
-            .map(color_diff_s1_logic, subset=['Diff S1']),
+            .map(color_diff_s1_logic, subset=['Diff S1']), # Apply Fixed Logic
             column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
             column_config={
                 "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
@@ -294,10 +298,10 @@ try:
             diff_s1 = (price - buy1)/buy1 if buy1 > 0 else 9.99
             
             signal = "4. Wait" 
-            if diff_s1 < 0 and price > 0: signal = "1. ✅ IN ZONE" # Diff S1 is negative
-            elif 0 <= diff_s1 <= 0.02 and price > 0: signal = "2. 🟢 ALERT" # Diff S1 0% to +2%
+            if diff_s1 < 0 and price > 0: signal = "1. ✅ IN ZONE" # < 0%
+            elif 0 <= diff_s1 <= 0.02 and price > 0: signal = "2. 🟢 ALERT" # 0% - 2%
             elif price >= sell1: signal = "5. 🔴 PROFIT"
-            else: signal = "3. ➖ Wait"
+            else: signal = "3. ➖ Wait" # > 2%
             
             watchlist_data.append({
                 "Tier": prb_tiers.get(t, "-"), "Ticker": t, "Price": price, "% Day": pct_change, "Signal": signal, 
@@ -315,6 +319,12 @@ try:
             elif "ALERT" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
             elif "PROFIT" in s['Signal']: return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
             return [''] * len(s)
+        
+        def color_tier(val):
+            if val == "S+": return 'color: #ffd700; font-weight: bold;' 
+            if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
+            if "A" in val: return 'color: #cd7f32; font-weight: bold;' 
+            return ''
 
         st.dataframe(
             df_watch.style.format({
@@ -322,8 +332,8 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .apply(highlight_row, axis=1)
-            .map(color_diff_s1_logic, subset=['Diff S1']) 
-            .map(color_tier, subset=['Tier']) # Function Added Back
+            .map(color_diff_s1_logic, subset=['Diff S1']) # Apply Fixed Logic
+            .map(color_tier, subset=['Tier'])
             .map(color_rsi, subset=['RSI']), 
             column_config={
                 "Display Signal": st.column_config.Column("Status", width="medium"),
@@ -343,5 +353,4 @@ try:
         )
 
 except Exception as e:
-    # This will catch errors outside the main Streamlit UI rendering (e.g., yfinance failure)
-    st.error(f"A critical error occurred. Please check the Ticker symbols or the external connection. Error: {e}")
+    st.error(f"System Error: {e}")
