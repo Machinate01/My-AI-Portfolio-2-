@@ -34,10 +34,15 @@ st.markdown("""
     div[data-testid="stDataFrame"] { width: 100%; }
     
     .stAlert { margin-top: 1rem; }
+    
+    /* Text Area Font */
+    textarea { font-size: 1.1rem !important; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Initialize Session State (ระบบความจำ) ---
+# --- 2. Initialize Session State (ระบบความจำ & ข้อมูลเริ่มต้น) ---
+
+# 2.1 Portfolio Data
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = [
         {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
@@ -48,11 +53,22 @@ if 'portfolio' not in st.session_state:
         {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 628.1220, "Qty": 0.0614849},
     ]
 
+# 2.2 Watchlist Data
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist = [
         "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
         "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "KO", "PG", "WM", "UBER", "SCHD"
     ]
+
+# 2.3 Weekly Note Data (บทความวิเคราะห์)
+if 'weekly_note' not in st.session_state:
+    st.session_state.weekly_note = """* **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
+    * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ
+* **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**
+    * **Event:** งบ **Micron (MU)** 🚨 *Highlight*
+    * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
+* **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**
+    * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน"""
 
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
@@ -61,10 +77,8 @@ with st.sidebar:
     
     st.divider()
     
-    # สร้าง Tab สำหรับการจัดการ
     tab_add, tab_remove = st.tabs(["➕ Add Asset", "🗑️ Remove/Sell"])
     
-    # --- TAB 1: ADD ---
     with tab_add:
         st.subheader("Add to Portfolio")
         with st.form("add_port"):
@@ -91,10 +105,8 @@ with st.sidebar:
                     st.success(f"Added {w_ticker}!")
                     st.rerun()
 
-    # --- TAB 2: REMOVE ---
     with tab_remove:
         st.subheader("Sell / Remove Position")
-        # สร้างลิสต์รายชื่อหุ้นที่มีในพอร์ต
         current_holdings = [f"{item['Ticker']} ({item['Category']})" for item in st.session_state.portfolio]
         if current_holdings:
             to_remove = st.selectbox("Select Position to Remove", current_holdings)
@@ -115,7 +127,7 @@ with st.sidebar:
                 st.warning(f"Removed {w_remove}.")
                 st.rerun()
 
-# --- 4. PRB Tier Mapping (Static) ---
+# --- 4. PRB Tier Mapping ---
 prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
     "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
@@ -132,7 +144,6 @@ try:
     now = datetime.utcnow() + timedelta(hours=7) 
     target_date_str = now.strftime("%d %B %Y %H:%M:%S")
 
-    # Prepare lists from Session State
     port_tickers = [item['Ticker'] for item in st.session_state.portfolio]
     watchlist_tickers = st.session_state.watchlist
     all_tickers = list(set(port_tickers + watchlist_tickers))
@@ -192,7 +203,6 @@ try:
     market_data = get_realtime_data(all_tickers)
 
     # --- 6. Data Processing ---
-    # ใช้ข้อมูลจาก Session State
     df = pd.DataFrame(st.session_state.portfolio)
     
     if not df.empty:
@@ -227,7 +237,6 @@ try:
         total_day_change = df['Day Change USD'].sum()
         total_invested = df['Total Cost'].sum()
     else:
-        # กรณีพอร์ตว่าง
         total_value = cash_balance_usd
         total_gain = 0
         total_day_change = 0
@@ -310,16 +319,20 @@ try:
                 * **> 70:** **สีแดง** (Overbought / น่าขาย)
                 """)
         
-        with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
-            st.markdown("""
-            * **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
-                * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ
-            * **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**
-                * **Event:** งบ **Micron (MU)** 🚨 *Highlight*
-                * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
-            * **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**
-                * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน
-            """)
+        # [NEW EDITABLE WEEKLY ANALYSIS]
+        with st.expander("📅 Weekly Analysis & Notes", expanded=True):
+            tab_view, tab_edit = st.tabs(["👁️ View", "✏️ Edit"])
+            
+            with tab_view:
+                st.markdown(st.session_state.weekly_note)
+            
+            with tab_edit:
+                st.info("คุณสามารถแก้ไข เพิ่ม หรือลบข้อความวิเคราะห์ได้ที่นี่ครับ")
+                new_note = st.text_area("Note Editor:", value=st.session_state.weekly_note, height=250)
+                if st.button("💾 Save Notes"):
+                    st.session_state.weekly_note = new_note
+                    st.success("บันทึกข้อมูลเรียบร้อย!")
+                    st.rerun()
 
     with col_mid_right:
         st.subheader("📊 Asset Allocation (Including Cash)")
@@ -362,7 +375,7 @@ try:
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1']),
-                column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+                column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "% P/L", "Current Price", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
                 column_config={
                     "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
                     "Buy Lv.1": "Buy Lv.1", "Sell Lv.1": "Sell Lv.1", "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
@@ -384,7 +397,7 @@ try:
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1']),
-                column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+                column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "% P/L", "Current Price", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
                 column_config={
                     "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
                     "Buy Lv.1": "Buy Lv.1", "Sell Lv.1": "Sell Lv.1", "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
