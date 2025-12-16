@@ -50,11 +50,11 @@ my_portfolio_data = [
     {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",  "Avg Cost": 274.9960, "Qty": 0.1118198},
 ]
 
-# 2.2 Watchlist Tickers (เพิ่ม CRWV จากข่าว ARK)
+# 2.2 Watchlist Tickers
 my_watchlist_tickers = [
     "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
     "RKLB", "ASTS", 
-    "EOSE", "IREN", "WBD", "CRWV", # Added CoreWeave
+    "EOSE", "IREN", "WBD", "CRWV",
     "KO", "PG", "WM", "UBER" 
 ] 
 
@@ -95,7 +95,7 @@ tech_levels = {
     "EOSE": [15, 18, 12, 10],
     "KO": [72, 75, 68, 65],
     "PG": [150, 155, 140, 138],
-    "CRWV": [65, 70, 55, 50] # Estimated Levels for CoreWeave
+    "CRWV": [65, 70, 55, 50]
 }
 
 # --- 3. ฟังก์ชันดึงราคา ---
@@ -109,7 +109,7 @@ def get_all_data(portfolio_data, watchlist_tickers):
         "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
         "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
         "AMD": 207.58, "AVGO": 339.81, "IREN": 40.13, "ASTS": 67.81, "EOSE": 13.63, "PATH": 16.16, "WBD": 29.71,
-        "CRWV": 58.50 # Mock Price for CoreWeave
+        "CRWV": 58.50 
     }
 
     try:
@@ -192,12 +192,14 @@ st.markdown("---")
 col_mid_left, col_mid_right = st.columns([2, 1])
 
 with col_mid_left:
-    with st.expander("🧠 Strategy Update: ARK Move & Market Shift", expanded=True):
+    with st.expander("🧠 Strategy: Nasdaq 24/5 & The Asian Advantage", expanded=True):
         st.markdown("""
-        * **⚠️ TSLA Warning:** ARK เทขายล็อตใหญ่ ($57.3M) -> **ห้ามไล่ราคา!** รอแนวรับ **$460** เท่านั้น (แรงกดดันขายสูง)
-        * **🚀 New Opportunity:** ARK เข้าเก็บ **CRWV (CoreWeave)** -> เพิ่มเข้า Watchlist ทันที (ธีม AI Infra ยังแกร่ง)
-        * **🛡️ Defensive Wall:** สบายใจได้ V, LLY ไม่ได้รับผลกระทบจากความผันผวนนี้
-        * **🌊 Action:** เงินสด $90 เน้นรอ Sniper กลุ่ม Space (RKLB) หรือ Infra (CRWV, IREN) ที่ราคาย่อตัว
+        * **🌍 Global 24/5 (Start Late 2026):** Nasdaq เตรียมเปิดเทรด 24 ชม.
+        * **🇹🇭 Asian Sniper Advantage:**
+            * ช่วง Night Session (21:00-04:00 US) ตรงกับ **09:00-16:00 ไทย**
+            * **Benefit:** คุณจะเทรด NVDA, AMZN, TSLA ได้ในเวลางาน ไม่ต้องอดนอน!
+            * **Warning:** สภาพคล่องต่ำ = ผันผวนสูง -> **Must use Limit Order Only!**
+        * **🌊 Current Action:** ถือเงินสด $90 รอ Sniper หุ้น Growth ที่ย่อตัวในจังหวะเผลอ
         """)
 
 with col_mid_right:
