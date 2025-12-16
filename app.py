@@ -52,16 +52,14 @@ try:
         "VOO": "ETF", "QQQM": "ETF"
     }
 
-    # รวม Ticker ทั้งหมดเพื่อดึงข้อมูลทีเดียว
+    # รวม Ticker ทั้งหมด
     port_tickers = [item['Ticker'] for item in my_portfolio_data]
     all_tickers = list(set(port_tickers + my_watchlist_tickers))
 
     # --- 3. ฟังก์ชันดึงราคาและคำนวณ Technical (Yahoo Finance Engine) ---
-    @st.cache_data(ttl=60, show_spinner="Fetching Real-time Market Data...") # Increased TTL for stability
+    @st.cache_data(ttl=60, show_spinner="Fetching Real-time Market Data...") 
     def get_realtime_data(tickers_list):
         data_dict = {}
-        
-        # Download data for all tickers (2 Year History for EMA200 and robustness)
         try:
             df_hist = yf.download(tickers_list, period="2y", group_by='ticker', auto_adjust=True, threads=True)
         except Exception as e:
@@ -76,46 +74,38 @@ try:
                     df_t = df_hist.copy()
 
                 df_t = df_t.dropna()
-                if df_t.empty or len(df_t) < 200: # Ensure enough data for EMA200
-                    data_dict[ticker] = {
-                        "Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0
-                    }
+                if df_t.empty or len(df_t) < 200:
+                    data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
                     continue
 
-                # 1. Price Data
+                # 1. Price
                 current_price = df_t['Close'].iloc[-1]
                 prev_close = df_t['Close'].iloc[-2]
                 
-                # 2. Calculate Indicators
+                # 2. Indicators
                 df_t['EMA50'] = df_t['Close'].ewm(span=50, adjust=False).mean()
                 df_t['EMA200'] = df_t['Close'].ewm(span=200, adjust=False).mean()
                 
-                # RSI (14)
+                # RSI
                 delta = df_t['Close'].diff()
                 gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                 rs = gain / loss
                 df_t['RSI'] = 100 - (100 / (1 + rs))
 
-                # Dynamic Sell Levels (BB & High)
+                # Sell Levels
                 df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
                 df_t['STD20'] = df_t['Close'].rolling(window=20).std()
                 sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1]
                 sell_r2 = df_t['Close'].iloc[-252:].max()
 
-                ema50 = df_t['EMA50'].iloc[-1]
-                ema200 = df_t['EMA200'].iloc[-1]
-                rsi_val = df_t['RSI'].iloc[-1]
-
                 data_dict[ticker] = {
                     "Price": current_price, "PrevClose": prev_close,
-                    "EMA50": ema50, "EMA200": ema200, "RSI": rsi_val,
-                    "Sell1": sell_r1, "Sell2": sell_r2
+                    "EMA50": df_t['EMA50'].iloc[-1], "EMA200": df_t['EMA200'].iloc[-1], 
+                    "RSI": df_t['RSI'].iloc[-1], "Sell1": sell_r1, "Sell2": sell_r2
                 }
             except Exception as e:
-                data_dict[ticker] = {
-                    "Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0
-                }
+                data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
                 
         return data_dict
 
@@ -125,7 +115,7 @@ try:
 
     market_data = get_realtime_data(all_tickers)
 
-    # --- 4. คำนวณพอร์ต (Processing) ---
+    # --- 4. ประมวลผลข้อมูล (Processing) ---
     df = pd.DataFrame(my_portfolio_data)
     
     df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
@@ -168,7 +158,8 @@ try:
 
     col_mid_left, col_mid_right = st.columns([2, 1])
     with col_mid_left:
-        with st.expander("🧠 Strategy: Nasdaq 24/5 & EMA Indicators", expanded=False):
+        # [UPDATED STRATEGY NOTE]
+        with st.expander("🧠 Strategy: EMA Indicator & Diff S1 & RSI Coloring", expanded=False):
             st.markdown("""
             * **📊 EMA Indicator Levels (Real-time):**
                 * **Buy Lv.1 (EMA 50):** จุดเข้าซื้อตามเทรนด์ (Sniper Zone)
@@ -179,6 +170,9 @@ try:
                 * **ค่าติดลบ (< 0%):** ✅ **IN ZONE** (ของถูก) - **สีเขียวเข้ม**
                 * **ค่าบวกเล็กน้อย (0% ถึง +2.0%):** 🟢 **ALERT** (เตรียมยิง) - **สีเขียวอ่อน**
                 * **ค่าบวกเยอะๆ (> +2.0%):** ➖ **Wait** (แพงไป) - **สีแดง**
+            * **🎨 RSI Coloring:**
+                * **< 30:** **สีเขียว** (Oversold / น่าซื้อ)
+                * **> 70:** **สีแดง** (Overbought / น่าขาย)
             """)
         
         with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
@@ -212,16 +206,21 @@ try:
         if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
     
+    # [Diff S1 Logic]
     def color_diff_s1_logic(val):
         if isinstance(val, (int, float)):
-            if val < 0: return 'color: #28a745; font-weight: bold;' 
-            elif 0 <= val <= 0.02: return 'color: #90EE90;' 
-            else: return 'color: #dc3545;'
+            if val < 0: return 'color: #28a745; font-weight: bold;' # เขียวเข้ม (IN ZONE)
+            elif 0 <= val <= 0.02: return 'color: #90EE90;' # เขียวอ่อน (ALERT)
+            else: return 'color: #dc3545;' # แดง (WAIT)
         return ''
 
+    # [RSI Logic]
     def color_rsi(val):
-        if val >= 70: return 'color: #dc3545; font-weight: bold;'
-        if val <= 30: return 'color: #28a745; font-weight: bold;'
+        try:
+            v = float(val)
+            if v >= 70: return 'color: #dc3545; font-weight: bold;' # Red
+            if v <= 30: return 'color: #28a745; font-weight: bold;' # Green
+        except: pass
         return ''
 
     def format_arrow(val):
@@ -232,7 +231,6 @@ try:
     with col_bot_left:
         st.subheader("🚀 Growth Engine") 
         growth_tickers = ["NVDA", "TSM", "AMZN"]
-        # [FIXED] ใช้ .loc[] เพื่อป้องกัน SettingWithCopyWarning
         df_growth = df.loc[df['Ticker'].isin(growth_tickers)].copy()
         
         st.dataframe(
@@ -252,7 +250,6 @@ try:
 
         st.subheader("🛡️ Defensive Wall") 
         defensive_tickers = ["V", "LLY", "VOO"]
-        # [FIXED] ใช้ .loc[] เพื่อป้องกัน SettingWithCopyWarning
         df_defensive = df.loc[df['Ticker'].isin(defensive_tickers)].copy()
         
         st.dataframe(
