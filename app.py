@@ -199,25 +199,33 @@ try:
 
     col_bot_left, col_bot_right = st.columns(2) 
 
-    # --- Styling Functions (NEW LOGIC) ---
+    # --- Styling Functions ---
     def color_text(val):
         if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
     
-    # [UPDATED] Diff S1 Color Logic
+    # [Diff S1 Logic]
     def color_diff_s1_logic(val):
         if isinstance(val, (int, float)):
             if val < 0: # ติดลบ (ของถูก) -> เขียวเข้ม
                 return 'color: #28a745; font-weight: bold;' 
-            elif 0 <= val <= 0.02: # บวกเล็กน้อย -> เขียวปกติ
+            elif 0 <= val <= 0.02: # บวกเล็กน้อย (0% - 2%) -> เขียวอ่อน
                 return 'color: #90EE90;' 
-            else: # บวกเยอะ -> แดง
+            elif val > 0.02: # บวกเยอะ (> 2%) -> แดง
                 return 'color: #dc3545;'
         return ''
 
+    # [RSI Logic]
     def color_rsi(val):
         if val >= 70: return 'color: #dc3545; font-weight: bold;' # Red (Overbought)
         if val <= 30: return 'color: #28a745; font-weight: bold;' # Green (Oversold)
+        return ''
+    
+    # [Tier Logic - Added back]
+    def color_tier(val):
+        if val == "S+": return 'color: #ffd700; font-weight: bold;' 
+        if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
+        if "A" in val: return 'color: #cd7f32; font-weight: bold;' 
         return ''
 
     def format_arrow(val):
@@ -239,7 +247,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .map(color_text, subset=['%G/L', 'Total Gain USD'])
-            .map(color_diff_s1_logic, subset=['Diff S1']), # Apply New Logic
+            .map(color_diff_s1_logic, subset=['Diff S1']),
             column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
             column_config={
                 "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
@@ -258,7 +266,7 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .map(color_text, subset=['%G/L', 'Total Gain USD'])
-            .map(color_diff_s1_logic, subset=['Diff S1']), # Apply New Logic
+            .map(color_diff_s1_logic, subset=['Diff S1']),
             column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
             column_config={
                 "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
@@ -279,24 +287,23 @@ try:
             
             # Real-time Indicators
             buy1 = data.get('EMA50', 0)
-            buy2 = data.get('EMA200', 0)
             sell1 = data.get('Sell1', 0)
-            sell2 = data.get('Sell2', 0)
             rsi = data.get('RSI', 50)
             
             # Logic Calculation
             diff_s1 = (price - buy1)/buy1 if buy1 > 0 else 9.99
             
             signal = "4. Wait" 
-            if price <= buy1 and price > 0: signal = "1. ✅ IN ZONE"
-            elif diff_s1 <= 0.02 and price > 0: signal = "2. 🟢 ALERT"
+            if diff_s1 < 0 and price > 0: signal = "1. ✅ IN ZONE" # Diff S1 is negative
+            elif 0 <= diff_s1 <= 0.02 and price > 0: signal = "2. 🟢 ALERT" # Diff S1 0% to +2%
             elif price >= sell1: signal = "5. 🔴 PROFIT"
             else: signal = "3. ➖ Wait"
             
             watchlist_data.append({
                 "Tier": prb_tiers.get(t, "-"), "Ticker": t, "Price": price, "% Day": pct_change, "Signal": signal, 
                 "Diff S1": diff_s1, "RSI": rsi,
-                "Buy Lv.1": buy1, "Buy Lv.2": buy2, "Sell Lv.1": sell1, "Sell Lv.2": sell2,
+                "Buy Lv.1": data.get('EMA50', 0), "Buy Lv.2": data.get('EMA200', 0), 
+                "Sell Lv.1": data.get('Sell1', 0), "Sell Lv.2": data.get('Sell2', 0),
                 "Display Signal": signal.split(". ")[1] 
             })
         
@@ -315,8 +322,8 @@ try:
                 "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
             })
             .apply(highlight_row, axis=1)
-            .map(color_diff_s1_logic, subset=['Diff S1']) # Apply New Logic
-            .map(color_tier, subset=['Tier'])
+            .map(color_diff_s1_logic, subset=['Diff S1']) 
+            .map(color_tier, subset=['Tier']) # Function Added Back
             .map(color_rsi, subset=['RSI']), 
             column_config={
                 "Display Signal": st.column_config.Column("Status", width="medium"),
@@ -336,4 +343,5 @@ try:
         )
 
 except Exception as e:
-    st.error(f"System Error: {e}")
+    # This will catch errors outside the main Streamlit UI rendering (e.g., yfinance failure)
+    st.error(f"A critical error occurred. Please check the Ticker symbols or the external connection. Error: {e}")
