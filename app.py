@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ (ต้องอยู่บรรทัดแรกสุด!) ---
-st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
+st.set_page_config(page_title="My Growth Portfolio", page_icon="🚀", layout="wide")
 
 # CSS ปรับแต่ง
 st.markdown("""
@@ -74,26 +74,22 @@ try:
                     df_t = df_hist.copy()
 
                 df_t = df_t.dropna()
-                if df_t.empty or len(df_t) < 200:
+                if df_t.empty or len(df_t) < 200: 
                     data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
                     continue
 
-                # 1. Price
                 current_price = df_t['Close'].iloc[-1]
                 prev_close = df_t['Close'].iloc[-2]
                 
-                # 2. Indicators
                 df_t['EMA50'] = df_t['Close'].ewm(span=50, adjust=False).mean()
                 df_t['EMA200'] = df_t['Close'].ewm(span=200, adjust=False).mean()
                 
-                # RSI
                 delta = df_t['Close'].diff()
                 gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                 rs = gain / loss
                 df_t['RSI'] = 100 - (100 / (1 + rs))
 
-                # Sell Levels
                 df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
                 df_t['STD20'] = df_t['Close'].rolling(window=20).std()
                 sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1]
@@ -115,7 +111,7 @@ try:
 
     market_data = get_realtime_data(all_tickers)
 
-    # --- 4. ประมวลผลข้อมูล (Processing) ---
+    # --- 4. คำนวณพอร์ต (Processing) ---
     df = pd.DataFrame(my_portfolio_data)
     
     df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
@@ -150,7 +146,7 @@ try:
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("💰 Total Value (USD)", f"${total_value:,.2f}", f"≈฿{total_value*33:,.0f}")
-    c2.metric("🌊 Cash Pool", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
+    c2.metric("🌊 Cash Flow", f"${cash_balance_usd:,.2f}", "Ready to Sniper") # Changed to Cash Flow
     c3.metric("📈 Unrealized G/L", f"${total_gain:,.2f}", f"Invested: ${total_invested:,.0f}")
     c4.metric("📅 Day Change", f"${total_day_change:+.2f}", f"{(total_day_change/total_invested*100):+.2f}%")
 
@@ -158,7 +154,9 @@ try:
 
     col_mid_left, col_mid_right = st.columns([2, 1])
     with col_mid_left:
-        # [UPDATED STRATEGY NOTE]
+        # [NEW HEADER]
+        st.subheader("ℹ️ Info") 
+        
         with st.expander("🧠 Strategy: EMA Indicator & Diff S1 & RSI Coloring", expanded=False):
             st.markdown("""
             * **📊 EMA Indicator Levels (Real-time):**
@@ -187,12 +185,11 @@ try:
             """)
 
     with col_mid_right:
-        # [UPDATED PIE CHART]
-        st.subheader("Asset Allocation (Including Cash)")
+        # [NEW HEADER WITH EMOJI]
+        st.subheader("📊 Asset Allocation (Including Cash)")
         
         labels = list(df['Ticker']) + ['CASH 💵']
         values = list(df['Value USD']) + [cash_balance_usd]
-        # Colors list expanded
         colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
         
         fig_pie = go.Figure(data=[go.Pie(
@@ -203,7 +200,6 @@ try:
             textfont=dict(size=14, color='white')
         )])
         
-        # Add Total Value in Center & Legend at Bottom
         fig_pie.update_layout(
             margin=dict(t=20, b=20, l=20, r=20), 
             height=350, 
@@ -222,32 +218,26 @@ try:
         if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
     
-    # [Diff S1 Logic]
     def color_diff_s1_logic(val):
         if isinstance(val, (int, float)):
-            if val < 0: return 'color: #28a745; font-weight: bold;' # เขียวเข้ม (IN ZONE)
-            elif 0 <= val <= 0.02: return 'color: #90EE90;' # เขียวอ่อน (ALERT)
-            else: return 'color: #dc3545;' # แดง (WAIT)
+            if val < 0: return 'color: #28a745; font-weight: bold;' 
+            elif 0 <= val <= 0.02: return 'color: #90EE90;' 
+            else: return 'color: #dc3545;' 
         return ''
 
-    # [RSI Logic]
     def color_rsi(val):
-        try:
-            v = float(val)
-            if v >= 70: return 'color: #dc3545; font-weight: bold;' # Red
-            if v <= 30: return 'color: #28a745; font-weight: bold;' # Green
-        except: pass
+        if val >= 70: return 'color: #dc3545; font-weight: bold;'
+        if val <= 30: return 'color: #28a745; font-weight: bold;'
         return ''
 
     def format_arrow(val):
         symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
         return f"{val:+.2%} {symbol}"
 
-    # [FIXED] Defined color_tier function here
     def color_tier(val):
-        if val == "S+": return 'color: #ffd700; font-weight: bold;' # Gold
-        if val == "S": return 'color: #c0c0c0; font-weight: bold;'  # Silver
-        if "A" in str(val): return 'color: #cd7f32; font-weight: bold;' # Bronze
+        if val == "S+": return 'color: #ffd700; font-weight: bold;' 
+        if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
+        if "A" in str(val): return 'color: #cd7f32; font-weight: bold;' 
         return ''
 
     # --- LEFT SIDE: Portfolio ---
