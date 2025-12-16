@@ -154,7 +154,7 @@ df = pd.DataFrame(my_portfolio_data)
 df['Current Price'] = df['Ticker'].map(fetched_prices)
 df['Prev Close'] = df['Ticker'].map(prev_closes)
 df['Value USD'] = df['Qty'] * df['Current Price']
-df['Total Cost'] = df['Qty'] * df['Avg Cost']
+df['Total Cost'] = df['Qty'] * df['Avg Cost'] # [NEW] Calculate Total Cost FIRST
 df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
 df['%G/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost']) 
 df['Day Change USD'] = (df['Current Price'] - df['Prev Close']) * df['Qty']
@@ -218,7 +218,8 @@ with col_mid_right:
 
 st.markdown("---")
 
-col_bot_left, col_bot_right = st.columns([1.3, 2.7]) 
+# [EDIT] Adjusted layout to 50:50 (Equal width)
+col_bot_left, col_bot_right = st.columns(2) 
 
 with col_bot_left:
     def color_text(val):
@@ -232,9 +233,8 @@ with col_bot_left:
         if val <= 0.02: return 'color: #28a745; font-weight: bold;'
         return ''
 
-    # [FIXED KEY ERROR] Select correct columns first, then rename!
+    # Create Display DF
     df_display = df.copy() 
-    # Use column names exactly as they are in 'df'
     
     st.subheader("🚀 Growth Engine") 
     growth_tickers = ["NVDA", "TSM", "AMZN"]
@@ -249,7 +249,7 @@ with col_bot_left:
         .map(color_text, subset=['%Day Change', '%G/L'])
         .map(color_diff_s1_main, subset=['Diff S1']),
         column_config={
-            "Current Price": "Price", # Rename using column_config instead
+            "Current Price": "Price",
             "%Day Change": "% Day",
             "%G/L": "% Total",
             "Value USD": "Value ($)"
