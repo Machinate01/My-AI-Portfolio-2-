@@ -319,8 +319,8 @@ try:
                 * **> 70:** **สีแดง** (Overbought / น่าขาย)
                 """)
         
-        # [NEW EDITABLE WEEKLY ANALYSIS]
-        with st.expander("📅 Weekly Analysis & Notes", expanded=True):
+        # [NEW TITLE HERE]
+        with st.expander("📅 Weekly Analysis & Notes : https://web.facebook.com/chaodoi.diary : ปฏิทินข้อมูลเศรษฐกิจที่สำคัญและการรายงานผลประกอบการที่น่าสนใจในสัปดาห์นี้", expanded=True):
             tab_view, tab_edit = st.tabs(["👁️ View", "✏️ Edit"])
             
             with tab_view:
