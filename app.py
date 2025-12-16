@@ -154,7 +154,7 @@ df = pd.DataFrame(my_portfolio_data)
 df['Current Price'] = df['Ticker'].map(fetched_prices)
 df['Prev Close'] = df['Ticker'].map(prev_closes)
 df['Value USD'] = df['Qty'] * df['Current Price']
-df['Total Cost'] = df['Qty'] * df['Avg Cost'] # [NEW] Calculate Total Cost FIRST
+df['Total Cost'] = df['Qty'] * df['Avg Cost'] 
 df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
 df['%G/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost']) 
 df['Day Change USD'] = (df['Current Price'] - df['Prev Close']) * df['Qty']
@@ -196,7 +196,8 @@ st.markdown("---")
 
 col_mid_left, col_mid_right = st.columns([2, 1])
 with col_mid_left:
-    with st.expander("🧠 Strategy: Nasdaq 24/5 & EMA Indicators", expanded=True):
+    # --- Strategy Section 1 (เดิม) ---
+    with st.expander("🧠 Strategy: Nasdaq 24/5 & EMA Indicators", expanded=False):
         st.markdown("""
         * **📊 EMA Indicator Levels:**
             * **Buy Lv.1 (EMA 50):** จุดเข้าซื้อตามเทรนด์ (Sniper Zone)
@@ -205,6 +206,28 @@ with col_mid_left:
         * **🎯 New Watchlist:** เพิ่ม **SCHD** (Dividend Growth) เพื่อกระจายความเสี่ยง
         * **🌊 Action:** ใช้เงินสด $90 รอช้อนที่ **Buy Lv.1** ถ้าหลุดให้รอ **Buy Lv.2**
         """)
+    
+    # --- Strategy Section 2 (ใหม่) ---
+    with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
+        st.markdown("""
+        * **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
+            * **Events:** ยอดค้าปลีก (Retail Sales) & การจ้างงาน (Nonfarm Payrolls)
+            * **Impact:**
+                * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ (คนซื้อของ/รูดบัตรน้อยลง)
+                * **WBD:** ถ้าแรงงานแกร่ง = ดอกเบี้ยไม่ลง = ลบต่อหุ้นหนี้เยอะ
+        * **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**
+            * **Event:** งบ **Micron (MU)** 🚨 *Highlight*
+            * **Impact:** MU ผลิตชิป HBM คู่กับ GPU
+                * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
+                * ถ้า "สต็อกล้น/ชะลอ" → **NVDA & TSM** โดนเทขาย (Profit Taking) 📉
+        * **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**
+            * **Events:** CPI, Accenture (ACN), FedEx (FDX)
+            * **Impact:**
+                * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน
+                * **ACN:** ตัวชี้วัด AI Adoption (Phase 3) → ถ้าดี ส่งผลบวกกลุ่ม Software
+                * **FDX:** ตัวชี้วัดเศรษฐกิจโลก → ถ้าลดเป้า **AMZN** หนาว
+        """)
+
 with col_mid_right:
     labels = list(df['Ticker']) + ['CASH 💵']
     values = list(df['Value USD']) + [cash_balance_usd]
@@ -218,7 +241,6 @@ with col_mid_right:
 
 st.markdown("---")
 
-# [EDIT] Adjusted layout to 50:50 (Equal width)
 col_bot_left, col_bot_right = st.columns(2) 
 
 with col_bot_left:
@@ -233,7 +255,6 @@ with col_bot_left:
         if val <= 0.02: return 'color: #28a745; font-weight: bold;'
         return ''
 
-    # Create Display DF
     df_display = df.copy() 
     
     st.subheader("🚀 Growth Engine") 
@@ -243,37 +264,39 @@ with col_bot_left:
     st.dataframe(
         df_growth.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
-            "Diff S1": "{:+.1%}", "%Day Change": format_arrow, "%G/L": format_arrow, "Value USD": "${:,.2f}",
+            "Diff S1": "{:+.1%}", "%G/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
         })
-        .map(color_text, subset=['%Day Change', '%G/L'])
+        .map(color_text, subset=['%G/L', 'Total Gain USD'])
         .map(color_diff_s1_main, subset=['Diff S1']),
+        column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
         column_config={
             "Current Price": "Price",
-            "%Day Change": "% Day",
             "%G/L": "% Total",
-            "Value USD": "Value ($)"
+            "Value USD": "Value ($)",
+            "Total Gain USD": "Total Gain ($)"
         },
         hide_index=True, use_container_width=True
     )
 
     st.subheader("🛡️ Defensive Wall") 
     defensive_tickers = ["V", "LLY", "VOO"]
-    df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)].copy()
+    df_defensive = df[df['Ticker'].isin(defensive_tickers)].copy()
     
     st.dataframe(
         df_defensive.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
-            "Diff S1": "{:+.1%}", "%Day Change": format_arrow, "%G/L": format_arrow, "Value USD": "${:,.2f}",
+            "Diff S1": "{:+.1%}", "%G/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
         })
-        .map(color_text, subset=['%Day Change', '%G/L'])
+        .map(color_text, subset=['%G/L', 'Total Gain USD'])
         .map(color_diff_s1_main, subset=['Diff S1']),
+        column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
         column_config={
             "Current Price": "Price",
-            "%Day Change": "% Day",
             "%G/L": "% Total",
-            "Value USD": "Value ($)"
+            "Value USD": "Value ($)",
+            "Total Gain USD": "Total Gain ($)"
         },
         hide_index=True, use_container_width=True
     )
