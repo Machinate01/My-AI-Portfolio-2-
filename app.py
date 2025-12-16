@@ -60,7 +60,6 @@ try:
     @st.cache_data(ttl=60, show_spinner="Fetching Real-time Market Data...") 
     def get_realtime_data(tickers_list):
         data_dict = {}
-        
         try:
             df_hist = yf.download(tickers_list, period="2y", group_by='ticker', auto_adjust=True, threads=True)
         except Exception as e:
@@ -195,26 +194,24 @@ try:
             """)
 
     with col_mid_right:
-        # [UPDATED PIE CHART]
         st.subheader("Asset Allocation (Including Cash)")
         
         labels = list(df['Ticker']) + ['CASH 💵']
         values = list(df['Value USD']) + [cash_balance_usd]
-        # Colors list expanded
         colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
         
         fig_pie = go.Figure(data=[go.Pie(
             labels=labels, values=values, hole=.5, 
             marker_colors=colors, 
             textinfo='label+percent', 
-            textposition='inside', # Force labels inside
+            textposition='inside', 
             textfont=dict(size=14, color='white')
         )])
         
         fig_pie.update_layout(
             margin=dict(t=0, b=0, l=0, r=0), 
-            height=320, # Increased height to fill the column
-            showlegend=False # Hide legend to maximize chart size
+            height=320, 
+            showlegend=False 
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -222,7 +219,7 @@ try:
 
     col_bot_left, col_bot_right = st.columns(2) 
 
-    # --- Styling Functions ---
+    # --- Styling Functions (Defined BEFORE usage) ---
     def color_text(val):
         if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
@@ -242,6 +239,13 @@ try:
     def format_arrow(val):
         symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
         return f"{val:+.2%} {symbol}"
+
+    # [FIXED] Defined color_tier function here
+    def color_tier(val):
+        if val == "S+": return 'color: #ffd700; font-weight: bold;' # Gold
+        if val == "S": return 'color: #c0c0c0; font-weight: bold;'  # Silver
+        if "A" in str(val): return 'color: #cd7f32; font-weight: bold;' # Bronze
+        return ''
 
     # --- LEFT SIDE: Portfolio ---
     with col_bot_left:
@@ -330,7 +334,7 @@ try:
             })
             .apply(highlight_row, axis=1)
             .map(color_diff_s1_logic, subset=['Diff S1'])
-            .map(color_tier, subset=['Tier'])
+            .map(color_tier, subset=['Tier']) # Now this function exists!
             .map(color_rsi, subset=['RSI']), 
             column_config={
                 "Display Signal": st.column_config.Column("Status", width="medium"),
