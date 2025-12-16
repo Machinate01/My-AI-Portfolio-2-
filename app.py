@@ -9,19 +9,37 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
+st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
-# CSS ปรับแต่ง
+# [EDIT] CSS ปรับขนาดตัวอักษรให้ใหญ่และชัดเจนขึ้น
 st.markdown("""
 <style>
-    [data-testid="stMetricValue"] { font-size: 2rem !important; font-weight: 700; }
-    div[data-testid="stDataFrame"] { font-size: 1.05rem !important; }
-    h3 { padding-top: 1rem; border-bottom: 2px solid #333; padding-bottom: 0.5rem;}
+    /* ปรับขนาดฟอนต์ทั้งหน้าเว็บ */
+    html, body, [class*="css"] {
+        font-family: 'sans-serif';
+    }
+    
+    /* ปรับขนาดตัวเลขใน Scorecard */
+    [data-testid="stMetricValue"] { 
+        font-size: 2.2rem !important; 
+        font-weight: 800; 
+    }
+    
+    /* ปรับขนาดตัวหนังสือในตาราง (DataFrame) */
+    div[data-testid="stDataFrame"] p { 
+        font-size: 1.15rem !important; 
+        font-family: 'Courier New', monospace; /* ใช้ฟอนต์ที่อ่านตัวเลขง่าย */
+    }
+    
+    /* ปรับหัวข้อ */
+    h3 { 
+        padding-top: 0.5rem; 
+        border-bottom: 3px solid #444; 
+        padding-bottom: 0.5rem;
+        font-size: 1.5rem !important;
+    }
+    
     .stAlert { margin-top: 1rem; }
-    /* Tier Tag Colors */
-    .tier-s-plus { color: #FFD700; font-weight: bold; } 
-    .tier-s { color: #C0C0C0; font-weight: bold; }      
-    .tier-a { color: #CD7F32; font-weight: bold; }      
 </style>
 """, unsafe_allow_html=True)
 
@@ -31,7 +49,6 @@ if st.button('🔄 Refresh Data (Real-time)'):
 
 # --- 2. ข้อมูลพอร์ต (Updated: 16 Dec 2025) ---
 start_date_str = "02/10/2025" 
-# [EDIT 1] แก้ไขเงินสดเป็น 90 USD
 cash_balance_usd = 90.00 
 
 # เวลาไทย
@@ -44,7 +61,7 @@ try:
 except:
     invest_days = 0
 
-# พอร์ตหลัก
+# 2.1 พอร์ตหลัก
 my_portfolio_data = [
     {"Ticker": "AMZN", "Company": "Amazon.com Inc.",       "Avg Cost": 228.0932, "Qty": 0.4157950},
     {"Ticker": "V",    "Company": "Visa Inc.",             "Avg Cost": 330.2129, "Qty": 0.2419045},
@@ -54,7 +71,7 @@ my_portfolio_data = [
     {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",  "Avg Cost": 274.9960, "Qty": 0.1118198},
 ]
 
-# Watchlist Tickers
+# 2.2 Watchlist Tickers
 my_watchlist_tickers = [
     "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
     "RKLB", "ASTS", 
@@ -161,6 +178,17 @@ df['%G/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost'])
 df['Day Change USD'] = (df['Current Price'] - df['Prev Close']) * df['Qty']
 df['%Day Change'] = ((df['Current Price'] - df['Prev Close']) / df['Prev Close'])
 
+def calculate_diff_s1(row):
+    ticker = row['Ticker']
+    price = row['Current Price']
+    levels = tech_levels.get(ticker, [0, 0, 0, 0])
+    s1 = levels[2]
+    if s1 > 0:
+        return (price - s1) / s1
+    return 0
+    
+df['Diff S1'] = df.apply(calculate_diff_s1, axis=1)
+
 total_invested_usd = df['Value USD'].sum()
 total_equity_usd = total_invested_usd + cash_balance_usd 
 total_equity_thb = total_equity_usd * exchange_rate
@@ -168,32 +196,34 @@ total_gain_usd = df['Total Gain USD'].sum()
 total_day_change_usd = df['Day Change USD'].sum()
 
 # --- 5. แสดงผล (UI) ---
-st.title("🔭 Sniper Portfolio & Watchlist")
+# [EDIT] เปลี่ยนชื่อหัวข้อตามที่ขอ
+st.title("🔭 My Portfolio & Watchlist") 
 st.caption(f"Last Update (BKK Time): {target_date_str}")
 
-# Scorecard
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-col_m1.metric("💰 Total Equity (THB)", f"฿{total_equity_thb:,.0f}", f"Cash: ${cash_balance_usd:,.0f}")
-col_m2.metric("📈 Unrealized Gain", f"${total_gain_usd:,.2f}", f"Invested: ${total_invested_usd:,.0f}")
-col_m3.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_change_usd/total_invested_usd*100):+.2f}%")
-col_m4.metric("💱 THB/USD", f"{exchange_rate:.2f}", "Real-time")
+col_m1.metric("💰 Total Value (USD)", f"${total_equity_usd:,.2f}", f"≈฿{total_equity_thb:,.0f}")
+col_m2.metric("🌊 Cash Pool", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
+col_m3.metric("📈 Unrealized G/L", f"${total_gain_usd:,.2f}", f"Invested: ${total_invested_usd:,.0f}")
+col_m4.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_change_usd/total_invested_usd*100):+.2f}%")
 
-# [STRATEGY NOTE]
-with st.expander("🧠 Strategy Note: Balanced Structure", expanded=True):
+with st.expander("🧠 Strategy Transformation: The Balanced Sniper (2025)", expanded=True):
     st.markdown("""
-    * **Port Structure (New):**
-        * **2.1 Growth Engine:** มุ่งเน้นการเติบโตจาก AI และ Cloud Infrastructure
-        * **2.2 Defensive Wall:** สร้างฐานความมั่งคั่งด้วยหุ้นกลุ่มการเงิน สุขภาพ และดัชนีตลาด
-    * **Action:** ใช้เงินสด $90 ที่เหลือในการทยอยสะสม (DCA) หรือรอจังหวะ Sniper หุ้นใน Watchlist ที่เข้าโซน Alert
+    * **🛡️ Main Port Structure:** แบ่งเป็น 2 กองทัพชัดเจน
+        * **Growth Engine:** NVDA, TSM, AMZN (เน้นวิ่งแรง)
+        * **Defensive Wall:** V, LLY, VOO (เน้นยืนระยะ)
+    * **🌊 Dime Tactic (ใช้เงิน $90 ให้คุ้ม):**
+        * ดูช่อง **Diff S1** ในตารางพอร์ต ถ้าตัวไหนลงมาใกล้ **0% หรือติดลบ** ให้ใช้เศษเงินทยอย DCA เพิ่ม
+    * **⚠️ Sniper Watchlist Warning:** * กลุ่ม **Space (RKLB/ASTS)** และ **Energy (IREN/EOSE)** ผันผวนสูงมาก 
+        * **ห้ามไล่ราคา!** รอให้เข้าโซนแนวรับ (Diff S1 ต่ำๆ) เท่านั้น ค่อยยิงไม้เล็กๆ
     """)
 
 st.markdown("---")
 
 col_main, col_side = st.columns([1.5, 2.5]) 
 
-# --- ส่วนซ้าย: Main Portfolio (Split Sections) ---
+# --- ส่วนซ้าย: Main Portfolio ---
 with col_main:
-    # Helper Functions for Styling
+    # Helper Functions
     def color_text(val):
         if isinstance(val, (int, float)):
             return 'color: #28a745' if val >= 0 else 'color: #dc3545'
@@ -203,52 +233,68 @@ with col_main:
         symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
         return f"{val:+.2%} {symbol}"
 
-    # Prepare Display Dataframes
-    df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Current Price', '%Day Change', '%G/L', 'Value USD']].copy()
-    df_display.columns = ['Ticker', 'Qty', 'Avg Cost', 'Price', '% Day', '% Total', 'Value ($)']
+    def color_diff_s1_main(val):
+        if val <= 0.02: return 'color: #28a745; font-weight: bold;'
+        return ''
+
+    df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Current Price', 'Diff S1', '%Day Change', '%G/L', 'Value USD']].copy()
+    df_display.columns = ['Ticker', 'Qty', 'Avg Cost', 'Price', 'Diff S1', '% Day', '% Total', 'Value ($)']
     
-    # [EDIT 2] Section 2.1 Growth Engine
-    st.subheader("🚀 2.1 Growth Engine (AI & Cloud)")
+    # [EDIT] ลบคำว่า 2.1 ออก
+    st.subheader("🚀 Growth Engine") 
     growth_tickers = ["NVDA", "TSM", "AMZN"]
     df_growth = df_display[df_display['Ticker'].isin(growth_tickers)]
     
     st.dataframe(
         df_growth.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Price": "${:.2f}",
-            "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}"
-        }).map(color_text, subset=['% Day', '% Total']),
+            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}"
+        })
+        .map(color_text, subset=['% Day', '% Total'])
+        .map(color_diff_s1_main, subset=['Diff S1']),
         hide_index=True, use_container_width=True
     )
 
-    # [EDIT 2] Section 2.2 Defensive Wall
-    st.subheader("🛡️ 2.2 Defensive Wall (Fin/Health/Index)")
+    # [EDIT] ลบคำว่า 2.2 ออก
+    st.subheader("🛡️ Defensive Wall") 
     defensive_tickers = ["V", "LLY", "VOO"]
     df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)]
     
     st.dataframe(
         df_defensive.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Price": "${:.2f}",
-            "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}"
-        }).map(color_text, subset=['% Day', '% Total']),
+            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}"
+        })
+        .map(color_text, subset=['% Day', '% Total'])
+        .map(color_diff_s1_main, subset=['Diff S1']),
         hide_index=True, use_container_width=True
     )
+
+# --- ส่วนขวา: Asset Allocation (Moved here) & Watchlist ---
+with col_side:
+    # [EDIT] ย้าย Pie Chart มาไว้ด้านบนขวา เพื่อความสวยงามและ Balance
+    st.subheader("📊 Asset Allocation")
     
-    st.caption("Asset Allocation (Including Cash)")
     labels = list(df['Ticker']) + ['CASH 💵']
     values = list(df['Value USD']) + [cash_balance_usd]
-    # Colors for pie chart
     colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
     
     fig_pie = go.Figure(data=[go.Pie(
         labels=labels, values=values, hole=.5,
-        marker_colors=colors, textinfo='label+percent'
+        marker_colors=colors, textinfo='label+percent',
+        textfont_size=16 # เพิ่มขนาดตัวอักษรในกราฟ
     )])
-    fig_pie.add_annotation(x=0.5, y=0.5, text=f"Total<br>${total_equity_usd:,.0f}", showarrow=False, font=dict(size=14, color="white"))
-    fig_pie.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=350, showlegend=True)
+    fig_pie.add_annotation(x=0.5, y=0.5, text=f"Total<br>${total_equity_usd:,.0f}", showarrow=False, font=dict(size=18, color="white", weight="bold"))
+    fig_pie.update_layout(
+        margin=dict(t=10, b=10, l=10, r=10), 
+        height=350, 
+        showlegend=True,
+        legend=dict(font=dict(size=14)) # เพิ่มขนาดตัวอักษร Legend
+    )
     st.plotly_chart(fig_pie, use_container_width=True)
+    
+    st.markdown("---")
 
-# --- ส่วนขวา: Watchlist (Sorted, Tiered & UNLOCKED) ---
-with col_side:
     st.subheader("🎯 Sniper Watchlist (Fractional Unlocked)")
     
     watchlist_data = []
@@ -336,4 +382,3 @@ with col_side:
         column_order=["Display Signal", "Tier", "Ticker", "Price", "% Day", "Dist S1", "รับ 1", "ต้าน 1"],
         hide_index=True, use_container_width=True
     )
-
