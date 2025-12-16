@@ -7,12 +7,42 @@ import plotly.graph_objects as go
 # --- 1. ตั้งค่าหน้าเว็บ (ต้องอยู่บรรทัดแรกสุด!) ---
 st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
-# CSS ปรับแต่ง
+# CSS ปรับแต่ง (Big Font Edition 🔍)
 st.markdown("""
 <style>
-    [data-testid="stMetricValue"] { font-size: 2.0rem !important; font-weight: 800; }
-    h3 { padding-top: 0.5rem; border-bottom: 2px solid #444; padding-bottom: 0.5rem; font-size: 1.4rem !important; }
+    /* ปรับขนาดฟอนต์พื้นฐานทั้งหน้าเว็บ */
+    html, body, [class*="css"] {
+        font-size: 1.1rem; /* เพิ่มขนาดพื้นฐาน */
+    }
+
+    /* ตัวเลขการเงิน (Metrics) ให้ใหญ่สะใจ */
+    [data-testid="stMetricValue"] {
+        font-size: 3.2rem !important; 
+        font-weight: 900;
+    }
+    
+    /* ป้ายกำกับตัวเลข (Label) */
+    [data-testid="stMetricLabel"] {
+        font-size: 1.3rem !important;
+    }
+
+    /* หัวข้อตารางและหัวข้อหลัก (H3) */
+    h3 {
+        padding-top: 1rem;
+        border-bottom: 3px solid #444;
+        padding-bottom: 0.5rem;
+        font-size: 2.2rem !important; /* ขยายหัวข้อ */
+    }
+
+    /* ข้อความใน Expander (Strategy) */
+    .streamlit-expanderContent p, .streamlit-expanderContent li, .stMarkdown p {
+        font-size: 1.2rem !important; /* ขยายเนื้อหา */
+    }
+
+    /* ปรับระยะห่าง */
     .stAlert { margin-top: 1rem; }
+    
+    /* ตาราง */
     div[data-testid="stDataFrame"] { width: 100%; }
 </style>
 """, unsafe_allow_html=True)
@@ -74,22 +104,26 @@ try:
                     df_t = df_hist.copy()
 
                 df_t = df_t.dropna()
-                if df_t.empty or len(df_t) < 200: 
+                if df_t.empty or len(df_t) < 200:
                     data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
                     continue
 
+                # 1. Price
                 current_price = df_t['Close'].iloc[-1]
                 prev_close = df_t['Close'].iloc[-2]
                 
+                # 2. Indicators
                 df_t['EMA50'] = df_t['Close'].ewm(span=50, adjust=False).mean()
                 df_t['EMA200'] = df_t['Close'].ewm(span=200, adjust=False).mean()
                 
+                # RSI
                 delta = df_t['Close'].diff()
                 gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                 rs = gain / loss
                 df_t['RSI'] = 100 - (100 / (1 + rs))
 
+                # Sell Levels
                 df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
                 df_t['STD20'] = df_t['Close'].rolling(window=20).std()
                 sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1]
@@ -111,7 +145,7 @@ try:
 
     market_data = get_realtime_data(all_tickers)
 
-    # --- 4. คำนวณพอร์ต (Processing) ---
+    # --- 4. ประมวลผลข้อมูล (Processing) ---
     df = pd.DataFrame(my_portfolio_data)
     
     df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
@@ -157,7 +191,7 @@ try:
         # [HEADER]
         st.subheader("ℹ️ Info") 
         
-        # [UPDATED 3-COLUMN LAYOUT]
+        # [3-COLUMN LAYOUT IN EXPANDER]
         with st.expander("🧠 Strategy: EMA Indicator & Diff S1 & RSI Coloring", expanded=False):
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -206,15 +240,16 @@ try:
             marker_colors=colors, 
             textinfo='label+percent', 
             textposition='inside', 
-            textfont=dict(size=14, color='white')
+            textfont=dict(size=16, color='white') # Increased Font
         )])
         
+        # Add Total Value in Center & Legend at Bottom
         fig_pie.update_layout(
             margin=dict(t=20, b=20, l=20, r=20), 
             height=350, 
             showlegend=True,
-            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5),
-            annotations=[dict(text=f'Total<br><b>${total_value:,.0f}</b>', x=0.5, y=0.5, font_size=20, showarrow=False)]
+            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=14)),
+            annotations=[dict(text=f'Total<br><b>${total_value:,.0f}</b>', x=0.5, y=0.5, font_size=24, showarrow=False)]
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
