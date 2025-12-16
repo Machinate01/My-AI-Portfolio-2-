@@ -4,8 +4,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-# --- 1. ตั้งค่าหน้าเว็บ (บรรทัดแรกสุด) ---
-st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
+# --- 1. ตั้งค่าหน้าเว็บ ---
+st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
@@ -40,8 +40,8 @@ st.markdown("""
 # --- 2. Sidebar Settings (ปรับเงินสดได้เอง) ---
 with st.sidebar:
     st.header("💼 Wallet Settings")
-    # ตั้งค่าเริ่มต้นเป็น 400 ตามพอร์ตปัจจุบันของคุณ
-    cash_balance_usd = st.number_input("Cash Flow ($)", value=400.00, step=50.0, format="%.2f")
+    # ตั้งค่าเริ่มต้น 90 ตามสคริปต์คุณ
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=90.00, step=10.0, format="%.2f")
     st.info("💡 ใส่จำนวนเงินสดที่มีเพื่อคำนวณพอร์ต")
 
 # --- 3. ข้อมูลพอร์ต (Portfolio Data) ---
@@ -49,7 +49,7 @@ try:
     now = datetime.utcnow() + timedelta(hours=7) 
     target_date_str = now.strftime("%d %B %Y %H:%M:%S")
 
-    # 3.1 พอร์ตหลัก (ข้อมูลจากสคริปต์ของคุณ)
+    # 3.1 พอร์ตหลัก (รวมทั้งหมดก่อน เดี๋ยวไปแยกตารางทีหลัง)
     my_portfolio_data = [
         {"Ticker": "AMZN", "Avg Cost": 228.0932, "Qty": 0.4157950},
         {"Ticker": "V",    "Avg Cost": 330.2129, "Qty": 0.2419045},
@@ -59,11 +59,10 @@ try:
         {"Ticker": "TSM",  "Avg Cost": 274.9960, "Qty": 0.1118198},
     ]
 
-    # 3.2 Watchlist Tickers (ข้อมูลจากสคริปต์ของคุณ)
+    # 3.2 Watchlist Tickers
     my_watchlist_tickers = [
-        "AMZN", "NVDA", "V", "VOO", "GOOGL", "META", "MSFT", "TSLA", 
-        "PLTR", "AAPL", "TSM", "LLY", "WBD", "AMD", "AVGO", "IREN",
-        "RKLB", "UBER", "CDNS", "WM" 
+        "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
+        "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "KO", "PG", "WM", "UBER", "SCHD"
     ] 
 
     # PRB Tier Mapping
@@ -71,7 +70,7 @@ try:
         "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
         "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
         "TSLA": "A+", "V": "A+", "MA": "A+", "LLY": "A+", "JNJ": "A+", "BRK.B": "A+", "PG": "B+", "KO": "B+",
-        "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A", "SCHD": "A", "CDNS": "S",
+        "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A", "SCHD": "A",
         "ISRG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+", "ASTS": "B+", "EOSE": "B+",
         "ADBE": "B", "UBER": "B", "HOOD": "B", "DASH": "B", "BABA": "B", "CRWV": "B", "MU": "B", "PATH": "C",
         "TTD": "C", "LULU": "C", "CMG": "C", "DUOL": "C", "PDD": "C", "ORCL": "C", "WBD": "Hold",
@@ -121,13 +120,10 @@ try:
                 df_t['RSI'] = 100 - (100 / (1 + rs))
 
                 # Sell Levels (Dynamic Calculation)
-                # Sell 1: Upper Bollinger Band (20, 2)
                 df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
                 df_t['STD20'] = df_t['Close'].rolling(window=20).std()
-                sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1] 
-                
-                # Sell 2: 52-Week High
-                sell_r2 = df_t['Close'].iloc[-252:].max()
+                sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1] # Bollinger Upper
+                sell_r2 = df_t['Close'].iloc[-252:].max() # 52W High
 
                 data_dict[ticker] = {
                     "Price": current_price, "PrevClose": prev_close,
@@ -156,7 +152,7 @@ try:
     df['Value USD'] = df['Qty'] * df['Current Price']
     df['Total Cost'] = df['Qty'] * df['Avg Cost']
     df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
-    df['% P/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost']) # Rename from % G/L
+    df['% P/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost']) 
     df['Day Change USD'] = (df['Current Price'] - df['PrevClose']) * df['Qty']
     df['%Day Change'] = ((df['Current Price'] - df['PrevClose']) / df['PrevClose']) if df['PrevClose'].sum() > 0 else 0
 
@@ -169,7 +165,7 @@ try:
         sell2 = data.get('Sell2', 0)
         
         diff_s1 = (price - buy1) / buy1 if buy1 > 0 else 0
-        upside = (sell1 - price) / price if price > 0 else 0 # New Upside Calc
+        upside = (sell1 - price) / price if price > 0 else 0 
         
         return pd.Series([buy1, buy2, sell1, sell2, diff_s1, upside], 
                          index=['Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2', 'Diff S1', 'Upside'])
@@ -182,8 +178,46 @@ try:
     total_day_change = df['Day Change USD'].sum()
     total_invested = df['Total Cost'].sum()
 
-    # --- 6. แสดงผล (UI) ---
-    st.title("🔭 Sniper Portfolio & Watchlist") 
+    # --- 6. Styling Functions (ประกาศก่อนใช้ กัน Error) ---
+    def color_text(val):
+        if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
+        return ''
+    
+    def color_diff_s1_logic(val):
+        if isinstance(val, (int, float)):
+            if val < 0: return 'color: #28a745; font-weight: bold;' 
+            elif 0 <= val <= 0.02: return 'color: #90EE90;' 
+            else: return 'color: #dc3545;' 
+        return ''
+
+    def color_rsi(val):
+        try:
+            v = float(val)
+            if v >= 70: return 'color: #dc3545; font-weight: bold;'
+            if v <= 30: return 'color: #28a745; font-weight: bold;'
+        except: pass
+        return ''
+
+    def format_arrow(val):
+        symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
+        return f"{val:+.2%} {symbol}"
+
+    def color_tier(val):
+        if val == "S+": return 'color: #ffd700; font-weight: bold;' 
+        if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
+        if "A" in str(val): return 'color: #cd7f32; font-weight: bold;' 
+        return ''
+
+    def highlight_row(s):
+        try:
+            if "IN ZONE" in str(s['Signal']): return ['background-color: rgba(40, 167, 69, 0.4)'] * len(s)
+            elif "ALERT" in str(s['Signal']): return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
+            elif "PROFIT" in str(s['Signal']): return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
+        except: pass
+        return [''] * len(s)
+
+    # --- 7. แสดงผล (UI) ---
+    st.title("🔭 My Portfolio & Watchlist") 
     st.caption(f"Last Update (BKK Time): {target_date_str} | Data Source: Yahoo Finance")
 
     c1, c2, c3, c4 = st.columns(4)
@@ -264,52 +298,47 @@ try:
 
     col_bot_left, col_bot_right = st.columns(2) 
 
-    # --- Styling Functions ---
-    def color_text(val):
-        if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
-        return ''
-    
-    def color_diff_s1_logic(val):
-        if isinstance(val, (int, float)):
-            if val < 0: return 'color: #28a745; font-weight: bold;' 
-            elif 0 <= val <= 0.02: return 'color: #90EE90;' 
-            else: return 'color: #dc3545;' 
-        return ''
-
-    def color_rsi(val):
-        if val >= 70: return 'color: #dc3545; font-weight: bold;'
-        if val <= 30: return 'color: #28a745; font-weight: bold;'
-        return ''
-
-    def format_arrow(val):
-        symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
-        return f"{val:+.2%} {symbol}"
-
-    def color_tier(val):
-        if val == "S+": return 'color: #ffd700; font-weight: bold;' 
-        if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
-        if "A" in str(val): return 'color: #cd7f32; font-weight: bold;' 
-        return ''
-
-    # --- LEFT SIDE: Portfolio (Clean & Compact) ---
+    # --- LEFT SIDE: Portfolio (Split Tables) ---
     with col_bot_left:
-        st.subheader("🛡️ Main Portfolio Holdings") 
+        # 1. Growth Engine
+        st.subheader("🚀 Growth Engine") 
+        growth_tickers = ["NVDA", "TSM", "AMZN"]
+        df_growth = df.loc[df['Ticker'].isin(growth_tickers)].copy()
         
         st.dataframe(
-            df.style.format({
+            df_growth.style.format({
                 "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
                 "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
                 "Upside": "{:+.1%}", "Buy Lv.1": "${:.0f}", "Sell Lv.1": "${:.0f}"
             })
             .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
             .map(color_diff_s1_logic, subset=['Diff S1']),
-            # Clean Column Order: Hidden Company, Added Upside, Renamed % P/L
-            column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+            # Clean Column Order
+            column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
             column_config={
-                "Current Price": "Price", 
-                "% P/L": "% Return", 
-                "Value USD": "Value ($)", 
-                "Total Gain USD": "Gain ($)",
+                "Current Price": "Price", "% P/L": "% Return", "Value USD": "Value ($)",
+                "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
+            },
+            hide_index=True, use_container_width=True
+        )
+
+        # 2. Defensive Wall
+        st.subheader("🛡️ Defensive Wall") 
+        defensive_tickers = ["V", "LLY", "VOO"]
+        df_defensive = df.loc[df['Ticker'].isin(defensive_tickers)].copy()
+        
+        st.dataframe(
+            df_defensive.style.format({
+                "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
+                "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
+                "Upside": "{:+.1%}", "Buy Lv.1": "${:.0f}", "Sell Lv.1": "${:.0f}"
+            })
+            .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
+            .map(color_diff_s1_logic, subset=['Diff S1']),
+            # Clean Column Order
+            column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+            column_config={
+                "Current Price": "Price", "% P/L": "% Return", "Value USD": "Value ($)",
                 "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
             },
             hide_index=True, use_container_width=True
@@ -349,12 +378,6 @@ try:
         
         df_watch = pd.DataFrame(watchlist_data)
         df_watch = df_watch.sort_values(by=["Signal", "Diff S1"], ascending=[True, True])
-
-        def highlight_row(s):
-            if "IN ZONE" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.4)'] * len(s)
-            elif "ALERT" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
-            elif "PROFIT" in s['Signal']: return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
-            return [''] * len(s)
 
         st.dataframe(
             df_watch.style.format({
