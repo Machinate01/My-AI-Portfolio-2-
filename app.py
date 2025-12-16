@@ -8,7 +8,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-# --- 1. ตั้งค่าหน้าเว็บ ---
+# --- 1. ตั้งค่าหน้าเว็บ (ต้องอยู่บรรทัดแรกสุดของคำสั่ง st เสมอ!) ---
 st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # CSS ปรับแต่ง
@@ -62,14 +62,15 @@ prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
     "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
     "TSLA": "A+", "V": "A+", "MA": "A+", "LLY": "A+", "JNJ": "A+", "BRK.B": "A+", "PG": "B+", "KO": "B+",
-    "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A",
-    "ISRG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+", "ASTS": "B+", "EOSE": "B+", "SCHD": "B+",
+    "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A", "SCHD": "A",
+    "ISRG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+", "ASTS": "B+", "EOSE": "B+",
     "ADBE": "B", "UBER": "B", "HOOD": "B", "DASH": "B", "BABA": "B", "CRWV": "B", "MU": "B", "PATH": "C",
     "TTD": "C", "LULU": "C", "CMG": "C", "DUOL": "C", "PDD": "C", "ORCL": "C", "WBD": "Hold",
     "VOO": "ETF", "QQQM": "ETF"
 }
 
-# 2.3 แนวรับ-แนวต้านทางเทคนิค
+# 2.3 แนวรับ-แนวต้านทางเทคนิค (อัปเดต EMA50/200 ตามคำขอ)
+# Structure: [Sell Lv.2, Sell Lv.1, Buy Lv.1 (EMA50), Buy Lv.2 (EMA200)]
 tech_levels = {
     "AMZN": [250, 235, 216, 195], 
     "AAPL": [300, 285, 260, 240], 
@@ -97,7 +98,14 @@ tech_levels = {
     "CRWV": [80, 70, 55, 45],
     "SCHD": [32, 30, 28, 26],
     "SMH": [380, 360, 340, 320],
-    "QQQ": [640, 620, 590, 560]
+    "QQQ": [640, 620, 590, 560],
+    
+    # [NEW] Updated Levels for Requested Tickers
+    "CRWD": [540, 510, 460, 420], # EMA50 ~460
+    "MU": [265, 250, 220, 180],   # EMA50 ~220 (Deep value at 180)
+    "PATH": [25, 20, 15, 12],     # EMA50 ~15
+    "QQQM": [270, 260, 245, 230], # Tracking Nasdaq100
+    "WBD": [45, 35, 28, 20]       # Turnaround play
 }
 
 # --- 3. ฟังก์ชันดึงราคา ---
@@ -106,11 +114,13 @@ def get_all_data(portfolio_data, watchlist_tickers):
     port_tickers = [item['Ticker'] for item in portfolio_data]
     all_tickers = list(set(port_tickers + watchlist_tickers))
     
+    # Mock Data (Updated to cover all tickers)
     simulated_prices = {
         "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
         "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
         "AMD": 207.58, "AVGO": 339.81, "IREN": 40.13, "ASTS": 67.81, "EOSE": 13.63, "PATH": 16.16, "WBD": 29.71,
-        "CRWV": 58.50, "SCHD": 28.50, "SMH": 352.90, "QQQ": 610.54
+        "CRWV": 58.50, "SCHD": 28.50, "SMH": 352.90, "QQQ": 610.54,
+        "CRWD": 487.47, "MU": 237.50, "QQQM": 251.36, "UBER": 81.86, "WM": 218.32, "AAPL": 274.11, "PG": 145.13
     }
 
     try:
@@ -125,6 +135,7 @@ def get_all_data(portfolio_data, watchlist_tickers):
     for t in all_tickers:
         if t in simulated_prices:
             live_prices[t] = simulated_prices[t]
+            # Simulate prev close logic
             if t == "TSLA": prev_closes[t] = simulated_prices[t] / 1.0356
             elif t == "LLY": prev_closes[t] = simulated_prices[t] / 1.1044
             elif t == "RKLB": prev_closes[t] = simulated_prices[t] / 0.9011
@@ -196,7 +207,7 @@ st.markdown("---")
 
 col_mid_left, col_mid_right = st.columns([2, 1])
 with col_mid_left:
-    # --- Strategy Section 1 (เดิม) ---
+    # --- Strategy Section 1 ---
     with st.expander("🧠 Strategy: Nasdaq 24/5 & EMA Indicators", expanded=False):
         st.markdown("""
         * **📊 EMA Indicator Levels:**
@@ -207,25 +218,19 @@ with col_mid_left:
         * **🌊 Action:** ใช้เงินสด $90 รอช้อนที่ **Buy Lv.1** ถ้าหลุดให้รอ **Buy Lv.2**
         """)
     
-    # --- Strategy Section 2 (ใหม่) ---
+    # --- Strategy Section 2 ---
     with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
         st.markdown("""
         * **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
-            * **Events:** ยอดค้าปลีก (Retail Sales) & การจ้างงาน (Nonfarm Payrolls)
-            * **Impact:**
-                * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ (คนซื้อของ/รูดบัตรน้อยลง)
-                * **WBD:** ถ้าแรงงานแกร่ง = ดอกเบี้ยไม่ลง = ลบต่อหุ้นหนี้เยอะ
+            * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ
+            * **WBD:** ถ้าแรงงานแกร่ง = ดอกเบี้ยไม่ลง = ลบต่อหุ้นหนี้เยอะ
         * **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**
             * **Event:** งบ **Micron (MU)** 🚨 *Highlight*
-            * **Impact:** MU ผลิตชิป HBM คู่กับ GPU
-                * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
-                * ถ้า "สต็อกล้น/ชะลอ" → **NVDA & TSM** โดนเทขาย (Profit Taking) 📉
+            * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
+            * ถ้า "สต็อกล้น/ชะลอ" → **NVDA & TSM** โดนเทขาย (Profit Taking) 📉
         * **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**
-            * **Events:** CPI, Accenture (ACN), FedEx (FDX)
-            * **Impact:**
-                * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน
-                * **ACN:** ตัวชี้วัด AI Adoption (Phase 3) → ถ้าดี ส่งผลบวกกลุ่ม Software
-                * **FDX:** ตัวชี้วัดเศรษฐกิจโลก → ถ้าลดเป้า **AMZN** หนาว
+            * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน
+            * **ACN:** ตัวชี้วัด AI Adoption (Phase 3)
         """)
 
 with col_mid_right:
@@ -245,8 +250,7 @@ col_bot_left, col_bot_right = st.columns(2)
 
 with col_bot_left:
     def color_text(val):
-        if isinstance(val, (int, float)):
-            return 'color: #28a745' if val >= 0 else 'color: #dc3545'
+        if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
         return ''
     def format_arrow(val):
         symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
@@ -271,10 +275,7 @@ with col_bot_left:
         .map(color_diff_s1_main, subset=['Diff S1']),
         column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
         column_config={
-            "Current Price": "Price",
-            "%G/L": "% Total",
-            "Value USD": "Value ($)",
-            "Total Gain USD": "Total Gain ($)"
+            "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
         },
         hide_index=True, use_container_width=True
     )
@@ -293,10 +294,7 @@ with col_bot_left:
         .map(color_diff_s1_main, subset=['Diff S1']),
         column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "%G/L", "Current Price", "Value USD", "Total Gain USD", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
         column_config={
-            "Current Price": "Price",
-            "%G/L": "% Total",
-            "Value USD": "Value ($)",
-            "Total Gain USD": "Total Gain ($)"
+            "Current Price": "Price", "%G/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)"
         },
         hide_index=True, use_container_width=True
     )
@@ -313,6 +311,7 @@ with col_bot_right:
         s1 = levels[2] 
         signal = "4. Wait" 
         dist_to_s1 = 999.9
+        
         if s1 > 0:
             dist_to_s1 = (price - s1) / s1 * 100 
             if price <= s1: signal = "1. ✅ IN ZONE"
@@ -320,9 +319,16 @@ with col_bot_right:
             elif price >= levels[1]: signal = "5. 🔴 PROFIT"
             else: signal = "3. ➖ Wait"
         
+        # [NEW] RSI Simulation Logic (Based on Distance to EMA)
+        # Closer to Buy Level = Lower RSI (Oversold), Far Above = Higher RSI (Overbought)
+        # This is a heuristic for the dashboard since we use mock prices
+        simulated_rsi = 50 + (dist_to_s1 * 1.5) 
+        simulated_rsi = max(20, min(85, simulated_rsi)) # Cap RSI between 20-85
+
         watchlist_data.append({
             "Tier": prb_tiers.get(t, "-"), "Ticker": t, "Price": price, "% Day": pct_change, "Signal": signal, 
             "Diff S1": dist_to_s1/100, "Buy Lv.1": levels[2], "Buy Lv.2": levels[3], "Sell Lv.1": levels[1], "Sell Lv.2": levels[0],
+            "RSI": simulated_rsi, # Added RSI Column
             "Display Signal": signal.split(". ")[1] 
         })
     
@@ -343,12 +349,21 @@ with col_bot_right:
         if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
         if "A" in val: return 'color: #cd7f32; font-weight: bold;' 
         return ''
+    # [NEW] RSI Color Logic
+    def color_rsi(val):
+        if val >= 70: return 'color: #dc3545; font-weight: bold;' # Red (Overbought)
+        if val <= 30: return 'color: #28a745; font-weight: bold;' # Green (Oversold)
+        return ''
 
     st.dataframe(
         df_watch.style.format({
-            "Price": "${:.2f}", "% Day": format_arrow, "Diff S1": "{:+.1%}",
+            "Price": "${:.2f}", "% Day": format_arrow, "Diff S1": "{:+.1%}", "RSI": "{:.0f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
-        }).apply(highlight_row, axis=1).map(color_dist_s1, subset=['Diff S1']).map(color_tier, subset=['Tier']),
+        })
+        .apply(highlight_row, axis=1)
+        .map(color_dist_s1, subset=['Diff S1'])
+        .map(color_tier, subset=['Tier'])
+        .map(color_rsi, subset=['RSI']), # Apply RSI Color
         column_config={
             "Display Signal": st.column_config.Column("Status", width="medium"),
             "Tier": st.column_config.Column("Tier", width="small"),
@@ -356,11 +371,12 @@ with col_bot_right:
             "Price": st.column_config.Column("Price", width="small"),
             "% Day": st.column_config.Column("% Day", width="small"),
             "Diff S1": st.column_config.Column("Diff S1", help="Distance to EMA 50"),
+            "RSI": st.column_config.Column("RSI", help="Relative Strength Index (Simulated)"),
             "Buy Lv.1": st.column_config.Column("Buy (EMA50)"),
             "Buy Lv.2": st.column_config.Column("Buy (EMA200)"),
             "Sell Lv.1": st.column_config.Column("Sell (R1)"),
             "Sell Lv.2": st.column_config.Column("Sell (R2)"),
         },
-        column_order=["Display Signal", "Tier", "Ticker", "Price", "% Day", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
+        column_order=["Display Signal", "Tier", "Ticker", "Price", "% Day", "Diff S1", "RSI", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
         hide_index=True, use_container_width=True
     )
