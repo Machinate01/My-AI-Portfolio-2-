@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ (ต้องอยู่บรรทัดแรกสุด!) ---
-st.set_page_config(page_title="My Growth Portfolio", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # CSS ปรับแต่ง
 st.markdown("""
@@ -146,7 +146,7 @@ try:
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("💰 Total Value (USD)", f"${total_value:,.2f}", f"≈฿{total_value*33:,.0f}")
-    c2.metric("🌊 Cash Flow", f"${cash_balance_usd:,.2f}", "Ready to Sniper") # Changed to Cash Flow
+    c2.metric("🌊 Cash Flow", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
     c3.metric("📈 Unrealized G/L", f"${total_gain:,.2f}", f"Invested: ${total_invested:,.0f}")
     c4.metric("📅 Day Change", f"${total_day_change:+.2f}", f"{(total_day_change/total_invested*100):+.2f}%")
 
@@ -154,24 +154,33 @@ try:
 
     col_mid_left, col_mid_right = st.columns([2, 1])
     with col_mid_left:
-        # [NEW HEADER]
+        # [HEADER]
         st.subheader("ℹ️ Info") 
         
+        # [UPDATED 3-COLUMN LAYOUT]
         with st.expander("🧠 Strategy: EMA Indicator & Diff S1 & RSI Coloring", expanded=False):
-            st.markdown("""
-            * **📊 EMA Indicator Levels (Real-time):**
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown("""
+                **📊 EMA Indicator Levels (Real-time):**
                 * **Buy Lv.1 (EMA 50):** จุดเข้าซื้อตามเทรนด์ (Sniper Zone)
                 * **Buy Lv.2 (EMA 200):** จุดรับของถูก (Deep Value / Floor)
                 * **Sell Lv.1:** Upper Bollinger Band (แนวต้านระยะสั้น)
                 * **Sell Lv.2:** 52-Week High (จุดสูงสุดเดิม)
-            * **🎯 วิธีอ่านค่า Diff S1 แบบ Sniper:**
+                """)
+            with c2:
+                st.markdown("""
+                **🎯 วิธีอ่านค่า Diff S1 แบบ Sniper:**
                 * **ค่าติดลบ (< 0%):** ✅ **IN ZONE** (ของถูก) - **สีเขียวเข้ม**
                 * **ค่าบวกเล็กน้อย (0% ถึง +2.0%):** 🟢 **ALERT** (เตรียมยิง) - **สีเขียวอ่อน**
                 * **ค่าบวกเยอะๆ (> +2.0%):** ➖ **Wait** (แพงไป) - **สีแดง**
-            * **🎨 RSI Coloring:**
+                """)
+            with c3:
+                st.markdown("""
+                **🎨 RSI Coloring:**
                 * **< 30:** **สีเขียว** (Oversold / น่าซื้อ)
                 * **> 70:** **สีแดง** (Overbought / น่าขาย)
-            """)
+                """)
         
         with st.expander("📅 Weekly Analysis: 16-18 Dec (Consumer, AI, Inflation)", expanded=True):
             st.markdown("""
@@ -185,7 +194,7 @@ try:
             """)
 
     with col_mid_right:
-        # [NEW HEADER WITH EMOJI]
+        # [PIE CHART]
         st.subheader("📊 Asset Allocation (Including Cash)")
         
         labels = list(df['Ticker']) + ['CASH 💵']
