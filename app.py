@@ -30,7 +30,6 @@ if st.button('🔄 Refresh Data (Real-time)'):
 start_date_str = "02/10/2025" 
 cash_balance_usd = 90.00 
 
-# เวลาไทย
 now = datetime.utcnow() + timedelta(hours=7) 
 target_date_str = now.strftime("%d %B %Y %H:%M:%S")
 
@@ -70,7 +69,7 @@ prb_tiers = {
     "VOO": "ETF", "QQQM": "ETF"
 }
 
-# 2.3 แนวรับ-แนวต้านทางเทคนิค (4 Levels: Sell2, Sell1, Buy1, Buy2)
+# 2.3 แนวรับ-แนวต้านทางเทคนิค
 tech_levels = {
     "AMZN": [250, 235, 216, 195], 
     "AAPL": [300, 285, 260, 240], 
@@ -165,7 +164,7 @@ def calculate_diff_s1(row):
     ticker = row['Ticker']
     price = row['Current Price']
     levels = tech_levels.get(ticker, [0, 0, 0, 0])
-    s1 = levels[2] # Buy Lv.1
+    s1 = levels[2]
     if s1 > 0:
         return (price - s1) / s1
     return 0
@@ -233,30 +232,49 @@ with col_bot_left:
         if val <= 0.02: return 'color: #28a745; font-weight: bold;'
         return ''
 
-    # [FIX] Select 'Current Price' instead of 'Price'
-    df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Total Cost', 'Current Price', 'Diff S1', '%Day Change', '%G/L', 'Value USD', 'Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2']].copy()
+    # [FIXED KEY ERROR] Select correct columns first, then rename!
+    df_display = df.copy() 
+    # Use column names exactly as they are in 'df'
     
     st.subheader("🚀 Growth Engine") 
     growth_tickers = ["NVDA", "TSM", "AMZN"]
-    df_growth = df_display[df_display['Ticker'].isin(growth_tickers)]
+    df_growth = df_display[df_display['Ticker'].isin(growth_tickers)].copy()
+    
     st.dataframe(
         df_growth.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
-            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value USD": "${:,.2f}",
+            "Diff S1": "{:+.1%}", "%Day Change": format_arrow, "%G/L": format_arrow, "Value USD": "${:,.2f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
-        }).map(color_text, subset=['% Day', '% Total']).map(color_diff_s1_main, subset=['Diff S1']),
+        })
+        .map(color_text, subset=['%Day Change', '%G/L'])
+        .map(color_diff_s1_main, subset=['Diff S1']),
+        column_config={
+            "Current Price": "Price", # Rename using column_config instead
+            "%Day Change": "% Day",
+            "%G/L": "% Total",
+            "Value USD": "Value ($)"
+        },
         hide_index=True, use_container_width=True
     )
 
     st.subheader("🛡️ Defensive Wall") 
     defensive_tickers = ["V", "LLY", "VOO"]
-    df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)]
+    df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)].copy()
+    
     st.dataframe(
         df_defensive.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
-            "Diff S1": "{:+.1%}", "% Day": format_arrow, "% Total": format_arrow, "Value USD": "${:,.2f}",
+            "Diff S1": "{:+.1%}", "%Day Change": format_arrow, "%G/L": format_arrow, "Value USD": "${:,.2f}",
             "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
-        }).map(color_text, subset=['% Day', '% Total']).map(color_diff_s1_main, subset=['Diff S1']),
+        })
+        .map(color_text, subset=['%Day Change', '%G/L'])
+        .map(color_diff_s1_main, subset=['Diff S1']),
+        column_config={
+            "Current Price": "Price",
+            "%Day Change": "% Day",
+            "%G/L": "% Total",
+            "Value USD": "Value ($)"
+        },
         hide_index=True, use_container_width=True
     )
 
