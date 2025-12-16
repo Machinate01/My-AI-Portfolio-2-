@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 # --- 1. ตั้งค่าหน้าเว็บ ---
 st.set_page_config(page_title="My Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
-# CSS ปรับแต่ง (คงเดิมตามที่คุณชอบ)
+# CSS ปรับแต่ง
 st.markdown("""
 <style>
     html, body, [class*="css"] { font-family: 'sans-serif'; }
@@ -50,11 +50,11 @@ my_portfolio_data = [
     {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",  "Avg Cost": 274.9960, "Qty": 0.1118198},
 ]
 
-# 2.2 Watchlist Tickers
+# 2.2 Watchlist Tickers (เพิ่ม CRWV จากข่าว ARK)
 my_watchlist_tickers = [
     "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
     "RKLB", "ASTS", 
-    "EOSE", "IREN", "WBD",
+    "EOSE", "IREN", "WBD", "CRWV", # Added CoreWeave
     "KO", "PG", "WM", "UBER" 
 ] 
 
@@ -94,7 +94,8 @@ tech_levels = {
     "ASTS": [70, 75, 60, 55],
     "EOSE": [15, 18, 12, 10],
     "KO": [72, 75, 68, 65],
-    "PG": [150, 155, 140, 138]
+    "PG": [150, 155, 140, 138],
+    "CRWV": [65, 70, 55, 50] # Estimated Levels for CoreWeave
 }
 
 # --- 3. ฟังก์ชันดึงราคา ---
@@ -103,11 +104,12 @@ def get_all_data(portfolio_data, watchlist_tickers):
     port_tickers = [item['Ticker'] for item in portfolio_data]
     all_tickers = list(set(port_tickers + watchlist_tickers))
     
-    # Mock Data for consistency
+    # Mock Data
     simulated_prices = {
         "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
         "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
-        "AMD": 207.58, "AVGO": 339.81, "IREN": 40.13, "ASTS": 67.81, "EOSE": 13.63, "PATH": 16.16, "WBD": 29.71
+        "AMD": 207.58, "AVGO": 339.81, "IREN": 40.13, "ASTS": 67.81, "EOSE": 13.63, "PATH": 16.16, "WBD": 29.71,
+        "CRWV": 58.50 # Mock Price for CoreWeave
     }
 
     try:
@@ -186,26 +188,19 @@ col_m4.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_
 
 st.markdown("---")
 
-# --- Layout ใหม่: แถวกลาง (บทความ + กราฟ) ---
-# แบ่งคอลัมน์เป็น 2:1 (ซ้ายกว้างหน่อยสำหรับข้อความ, ขวาสำหรับกราฟ)
+# --- Layout: แถวกลาง (บทความ + กราฟ) ---
 col_mid_left, col_mid_right = st.columns([2, 1])
 
 with col_mid_left:
-    # 1. บทความกลยุทธ์
-    with st.expander("🧠 Strategy Transformation: The Balanced Sniper (2025)", expanded=True):
+    with st.expander("🧠 Strategy Update: ARK Move & Market Shift", expanded=True):
         st.markdown("""
-        * **🛡️ Main Port Structure:** แบ่งเป็น 2 กองทัพชัดเจน
-            * **Growth Engine:** NVDA, TSM, AMZN (เน้นวิ่งแรง)
-            * **Defensive Wall:** V, LLY, VOO (เน้นยืนระยะ)
-        * **🌊 Dime Tactic (ใช้เงิน $90 ให้คุ้ม):**
-            * ดูช่อง **Diff S1** ในตารางพอร์ต ถ้าตัวไหนลงมาใกล้ **0% หรือติดลบ** ให้ใช้เศษเงินทยอย DCA เพิ่ม
-        * **⚠️ Sniper Watchlist Warning:** * กลุ่ม **Space (RKLB/ASTS)** และ **Energy (IREN/EOSE)** ผันผวนสูงมาก 
-            * **ห้ามไล่ราคา!** รอให้เข้าโซนแนวรับ (Diff S1 ต่ำๆ) เท่านั้น ค่อยยิงไม้เล็กๆ
+        * **⚠️ TSLA Warning:** ARK เทขายล็อตใหญ่ ($57.3M) -> **ห้ามไล่ราคา!** รอแนวรับ **$460** เท่านั้น (แรงกดดันขายสูง)
+        * **🚀 New Opportunity:** ARK เข้าเก็บ **CRWV (CoreWeave)** -> เพิ่มเข้า Watchlist ทันที (ธีม AI Infra ยังแกร่ง)
+        * **🛡️ Defensive Wall:** สบายใจได้ V, LLY ไม่ได้รับผลกระทบจากความผันผวนนี้
+        * **🌊 Action:** เงินสด $90 เน้นรอ Sniper กลุ่ม Space (RKLB) หรือ Infra (CRWV, IREN) ที่ราคาย่อตัว
         """)
 
 with col_mid_right:
-    # 2. Asset Allocation Chart (ย้ายมาตรงนี้)
-    # st.subheader("📊 Asset Allocation") # เอาหัวข้อออกเพื่อให้ดูคลีน หรือใส่ก็ได้
     labels = list(df['Ticker']) + ['CASH 💵']
     values = list(df['Value USD']) + [cash_balance_usd]
     colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
@@ -215,24 +210,21 @@ with col_mid_right:
         marker_colors=colors, textinfo='label+percent',
         textfont_size=14
     )])
-    # ปรับขนาดกราฟให้พอดีกับช่องขวา
     fig_pie.update_layout(
         margin=dict(t=10, b=10, l=10, r=10), 
-        height=250, # ลดความสูงลงนิดหน่อยให้สมดุลกับกล่องข้อความ
+        height=250, 
         showlegend=True,
-        legend=dict(font=dict(size=10), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5) # เอา Legend ไปไว้ข้างล่าง
+        legend=dict(font=dict(size=10), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
 st.markdown("---")
 
-# --- Layout ใหม่: แถวล่าง (พอร์ตซ้าย + Watchlist ขวา) ---
-# แบ่งคอลัมน์เป็น 1.3 : 2.7 (ให้ Watchlist กว้างหน่อยเพราะคอลัมน์เยอะ)
+# --- Layout: แถวล่าง (พอร์ตซ้าย + Watchlist ขวา) ---
 col_bot_left, col_bot_right = st.columns([1.3, 2.7]) 
 
-# --- ส่วนซ้าย: Main Portfolio (Growth & Defensive) ---
+# --- ส่วนซ้าย: Main Portfolio ---
 with col_bot_left:
-    # Helper Functions
     def color_text(val):
         if isinstance(val, (int, float)):
             return 'color: #28a745' if val >= 0 else 'color: #dc3545'
@@ -277,7 +269,7 @@ with col_bot_left:
         hide_index=True, use_container_width=True
     )
 
-# --- ส่วนขวา: Watchlist (Moved here) ---
+# --- ส่วนขวา: Watchlist ---
 with col_bot_right:
     st.subheader("🎯 Sniper Watchlist (Fractional Unlocked)")
     
