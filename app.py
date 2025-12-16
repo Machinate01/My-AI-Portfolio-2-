@@ -31,8 +31,8 @@ if st.button('🔄 Refresh Data (Real-time)'):
 
 # --- 2. ข้อมูลพอร์ต (Updated: 16 Dec 2025) ---
 start_date_str = "02/10/2025" 
-# คงเงินสด Sniper Pool ไว้ที่ $400 ตามกลยุทธ์เดิม (หรือปรับตามจริงถ้ามีการเปลี่ยนแปลง)
-cash_balance_usd = 400.00 
+# [EDIT 1] แก้ไขเงินสดเป็น 90 USD
+cash_balance_usd = 90.00 
 
 # เวลาไทย
 now = datetime.utcnow() + timedelta(hours=7) 
@@ -44,7 +44,7 @@ try:
 except:
     invest_days = 0
 
-# 2.1 พอร์ตหลัก (New Data Set)
+# 2.1 พอร์ตหลัก
 my_portfolio_data = [
     {"Ticker": "AMZN", "Company": "Amazon.com Inc.",       "Avg Cost": 228.0932, "Qty": 0.4157950},
     {"Ticker": "V",    "Company": "Visa Inc.",             "Avg Cost": 330.2129, "Qty": 0.2419045},
@@ -54,19 +54,15 @@ my_portfolio_data = [
     {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",  "Avg Cost": 274.9960, "Qty": 0.1118198},
 ]
 
-# 2.2 Watchlist Tickers (Updated from Image & Request)
+# 2.2 Watchlist Tickers
 my_watchlist_tickers = [
-    # Tech / AI
     "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
-    # Space / Future
     "RKLB", "ASTS", 
-    # Energy / Infra
     "EOSE", "IREN", "WBD",
-    # Quality / Defensive
     "KO", "PG", "WM", "UBER" 
 ] 
 
-# PRB Tier Mapping (Updated)
+# PRB Tier Mapping
 prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
     "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
@@ -78,9 +74,8 @@ prb_tiers = {
     "VOO": "ETF", "QQQM": "ETF"
 }
 
-# 2.3 แนวรับ-แนวต้านทางเทคนิค (Updated 16/12/2568)
+# 2.3 แนวรับ-แนวต้านทางเทคนิค
 tech_levels = {
-    # [NEW] Updated Levels
     "AMZN": [230, 244, 216, 212], 
     "AAPL": [280, 288, 268, 260], 
     "GOOGL": [320, 330, 300, 288], 
@@ -91,19 +86,17 @@ tech_levels = {
     "PLTR": [195, 205, 180, 175],
     "AMD": [224, 238, 205, 199], 
     "AVGO": [350, 370, 335, 316],
-    
-    # Others (Estimates or Previous)
     "TSM": [300, 310, 275, 268], 
     "LLY": [1100, 1150, 1000, 980],
     "V": [355, 365, 340, 330], 
     "VOO": [635, 650, 615, 600],
     "IREN": [50, 60, 38, 35],
-    "RKLB": [60, 65, 50, 45], # Rocket Lab
+    "RKLB": [60, 65, 50, 45],
     "UBER": [95, 100, 82, 78],
     "CDNS": [320, 330, 290, 280],
     "WM": [230, 235, 215, 210],
-    "ASTS": [70, 75, 60, 55], # SpaceMobile
-    "EOSE": [15, 18, 12, 10], # Energy
+    "ASTS": [70, 75, 60, 55],
+    "EOSE": [15, 18, 12, 10],
     "KO": [72, 75, 68, 65],
     "PG": [150, 155, 140, 138]
 }
@@ -114,7 +107,7 @@ def get_all_data(portfolio_data, watchlist_tickers):
     port_tickers = [item['Ticker'] for item in portfolio_data]
     all_tickers = list(set(port_tickers + watchlist_tickers))
     
-    # Mock Data (Based on your input for consistency)
+    # Mock Data
     simulated_prices = {
         "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
         "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
@@ -133,10 +126,9 @@ def get_all_data(portfolio_data, watchlist_tickers):
     for t in all_tickers:
         if t in simulated_prices:
             live_prices[t] = simulated_prices[t]
-            # Simulate prev close for Day Change calculation
-            if t == "TSLA": prev_closes[t] = simulated_prices[t] / 1.0356 # +3.56%
-            elif t == "LLY": prev_closes[t] = simulated_prices[t] / 1.1044 # +10% example
-            elif t == "RKLB": prev_closes[t] = simulated_prices[t] / 0.9011 # -9.89%
+            if t == "TSLA": prev_closes[t] = simulated_prices[t] / 1.0356
+            elif t == "LLY": prev_closes[t] = simulated_prices[t] / 1.1044
+            elif t == "RKLB": prev_closes[t] = simulated_prices[t] / 0.9011
             else: prev_closes[t] = simulated_prices[t] 
         else:
             try:
@@ -186,28 +178,22 @@ col_m2.metric("📈 Unrealized Gain", f"${total_gain_usd:,.2f}", f"Invested: ${t
 col_m3.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_change_usd/total_invested_usd*100):+.2f}%")
 col_m4.metric("💱 THB/USD", f"{exchange_rate:.2f}", "Real-time")
 
-# [STRATEGY PRESERVED]
-with st.expander("🧠 Strategy Transformation: The Balanced Sniper (2025)", expanded=True):
+# [STRATEGY NOTE]
+with st.expander("🧠 Strategy Note: Balanced Structure", expanded=True):
     st.markdown("""
-    ### 🛡️ Portfolio Evolution (16 Dec 2025)
-    * **New Structure:** พอร์ตใหม่มีความสมดุลสูงมาก (High Balance) กระจายความเสี่ยงครบทุกมิติ
-        * **Growth Engine:** **NVDA, TSM** (AI Core), **AMZN** (Cloud/Infra)
-        * **Defensive Wall:** **V** (Finance), **LLY** (Health), **VOO** (S&P 500)
-    * **🎯 Sniper Watchlist (Next Steps):**
-        * **Space Race:** **RKLB, ASTS** (รอย่อตัวเพื่อเข้าสะสมด้วยเงินสด)
-        * **Energy/Infra:** **EOSE, IREN** (จับตาความผันผวน เพื่อหาจังหวะ Big Shot)
-        * **Physical AI:** **TSLA** (เฝ้าระวังที่แนวรับ $460/$445)
-    * **💡 Dime Tactic:** ใช้ข้อได้เปรียบของการซื้อเศษหุ้น ทยอยสะสมหุ้น A+/S Tier เมื่อเข้าโซน Alert โดยไม่ต้องกังวลราคาต่อหุ้น
+    * **Port Structure (New):**
+        * **2.1 Growth Engine:** มุ่งเน้นการเติบโตจาก AI และ Cloud Infrastructure
+        * **2.2 Defensive Wall:** สร้างฐานความมั่งคั่งด้วยหุ้นกลุ่มการเงิน สุขภาพ และดัชนีตลาด
+    * **Action:** ใช้เงินสด $90 ที่เหลือในการทยอยสะสม (DCA) หรือรอจังหวะ Sniper หุ้นใน Watchlist ที่เข้าโซน Alert
     """)
 
 st.markdown("---")
 
 col_main, col_side = st.columns([1.5, 2.5]) 
 
-# --- ส่วนซ้าย: Main Portfolio ---
+# --- ส่วนซ้าย: Main Portfolio (Split Sections) ---
 with col_main:
-    st.subheader(f"🛡️ Main Holdings")
-    
+    # Helper Functions for Styling
     def color_text(val):
         if isinstance(val, (int, float)):
             return 'color: #28a745' if val >= 0 else 'color: #dc3545'
@@ -217,11 +203,30 @@ with col_main:
         symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
         return f"{val:+.2%} {symbol}"
 
-    display_df = df[['Ticker', 'Qty', 'Avg Cost', 'Current Price', '%Day Change', '%G/L', 'Value USD']].copy()
-    display_df.columns = ['Ticker', 'Qty', 'Avg Cost', 'Price', '% Day', '% Total', 'Value ($)']
+    # Prepare Display Dataframes
+    df_display = df[['Ticker', 'Qty', 'Avg Cost', 'Current Price', '%Day Change', '%G/L', 'Value USD']].copy()
+    df_display.columns = ['Ticker', 'Qty', 'Avg Cost', 'Price', '% Day', '% Total', 'Value ($)']
+    
+    # [EDIT 2] Section 2.1 Growth Engine
+    st.subheader("🚀 2.1 Growth Engine (AI & Cloud)")
+    growth_tickers = ["NVDA", "TSM", "AMZN"]
+    df_growth = df_display[df_display['Ticker'].isin(growth_tickers)]
     
     st.dataframe(
-        display_df.style.format({
+        df_growth.style.format({
+            "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Price": "${:.2f}",
+            "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}"
+        }).map(color_text, subset=['% Day', '% Total']),
+        hide_index=True, use_container_width=True
+    )
+
+    # [EDIT 2] Section 2.2 Defensive Wall
+    st.subheader("🛡️ 2.2 Defensive Wall (Fin/Health/Index)")
+    defensive_tickers = ["V", "LLY", "VOO"]
+    df_defensive = df_display[df_display['Ticker'].isin(defensive_tickers)]
+    
+    st.dataframe(
+        df_defensive.style.format({
             "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Price": "${:.2f}",
             "% Day": format_arrow, "% Total": format_arrow, "Value ($)": "${:,.2f}"
         }).map(color_text, subset=['% Day', '% Total']),
@@ -231,7 +236,8 @@ with col_main:
     st.caption("Asset Allocation (Including Cash)")
     labels = list(df['Ticker']) + ['CASH 💵']
     values = list(df['Value USD']) + [cash_balance_usd]
-    colors = ['#333333', '#ff7f0e', '#d62728', '#1f77b4', '#2ca02c'] 
+    # Colors for pie chart
+    colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
     
     fig_pie = go.Figure(data=[go.Pie(
         labels=labels, values=values, hole=.5,
