@@ -18,6 +18,10 @@ st.markdown("""
     div[data-testid="stDataFrame"] { font-size: 1.05rem !important; }
     h3 { padding-top: 1rem; border-bottom: 2px solid #333; padding-bottom: 0.5rem;}
     .stAlert { margin-top: 1rem; }
+    /* Tier Tag Colors */
+    .tier-s-plus { color: #FFD700; font-weight: bold; } 
+    .tier-s { color: #C0C0C0; font-weight: bold; }      
+    .tier-a { color: #CD7F32; font-weight: bold; }      
 </style>
 """, unsafe_allow_html=True)
 
@@ -25,12 +29,12 @@ st.markdown("""
 if st.button('🔄 Refresh Data (Real-time)'):
     st.rerun()
 
-# --- 2. ข้อมูลพอร์ต (16 Dec 2025) ---
+# --- 2. ข้อมูลพอร์ต (Updated: 16 Dec 2025) ---
 start_date_str = "02/10/2025" 
-# คงเงินสด Sniper Pool ไว้ที่ $400 ตามการวิเคราะห์ก่อนหน้า
+# คงเงินสด Sniper Pool ไว้ที่ $400 ตามกลยุทธ์เดิม (หรือปรับตามจริงถ้ามีการเปลี่ยนแปลง)
 cash_balance_usd = 400.00 
 
-# เวลาไทย (อัปเดตวันที่ตามที่ผู้ใช้ระบุ)
+# เวลาไทย
 now = datetime.utcnow() + timedelta(hours=7) 
 target_date_str = now.strftime("%d %B %Y %H:%M:%S")
 
@@ -40,58 +44,68 @@ try:
 except:
     invest_days = 0
 
-# 2.1 พอร์ตหลัก (อัปเดตใหม่ทั้งหมด)
+# 2.1 พอร์ตหลัก (New Data Set)
 my_portfolio_data = [
-    {"Ticker": "AMZN", "Company": "Amazon.com Inc.",         "Avg Cost": 228.0932, "Qty": 0.4157950},
-    {"Ticker": "V",    "Company": "Visa Inc.",               "Avg Cost": 330.2129, "Qty": 0.2419045},
-    {"Ticker": "LLY",  "Company": "Eli Lilly and Company",   "Avg Cost": 961.8167, "Qty": 0.0707723},
-    {"Ticker": "NVDA", "Company": "NVIDIA Corp.",            "Avg Cost": 178.7260, "Qty": 0.3351499},
-    {"Ticker": "VOO",  "Company": "Vanguard S&P 500 ETF",    "Avg Cost": 628.1220, "Qty": 0.0614849},
-    {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",    "Avg Cost": 274.9960, "Qty": 0.1118198},
+    {"Ticker": "AMZN", "Company": "Amazon.com Inc.",       "Avg Cost": 228.0932, "Qty": 0.4157950},
+    {"Ticker": "V",    "Company": "Visa Inc.",             "Avg Cost": 330.2129, "Qty": 0.2419045},
+    {"Ticker": "LLY",  "Company": "Eli Lilly and Company", "Avg Cost": 961.8167, "Qty": 0.0707723},
+    {"Ticker": "NVDA", "Company": "NVIDIA Corp.",          "Avg Cost": 178.7260, "Qty": 0.3351499},
+    {"Ticker": "VOO",  "Company": "Vanguard S&P 500 ETF",  "Avg Cost": 628.1220, "Qty": 0.0614849},
+    {"Ticker": "TSM",  "Company": "Taiwan Semiconductor",  "Avg Cost": 274.9960, "Qty": 0.1118198},
 ]
 
-# 2.2 Watchlist Tickers (รวม Magnificent 10 และตัวที่น่าสนใจ)
+# 2.2 Watchlist Tickers (Updated from Image & Request)
 my_watchlist_tickers = [
-    "AMZN", "NVDA", "V", "VOO", "GOOGL", "META", "MSFT", "TSLA", 
-    "PLTR", "AAPL", "TSM", "LLY", "AMD", "AVGO", "IREN",
-    "RKLB", "UBER", "CDNS", "WM" # VOO, V, AMZN ถูกเพิ่มเข้าไปในพอร์ตแล้ว แต่ยังอยู่ใน Watchlist เพื่อดู Alert
+    # Tech / AI
+    "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
+    # Space / Future
+    "RKLB", "ASTS", 
+    # Energy / Infra
+    "EOSE", "IREN", "WBD",
+    # Quality / Defensive
+    "KO", "PG", "WM", "UBER" 
 ] 
 
-# PRB Tier Mapping
+# PRB Tier Mapping (Updated)
 prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
-    "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S",
-    "TSLA": "A+", "V": "A+", "MA": "A+", "LLY": "A+", "JNJ": "A+", "BRK.B": "A+",
+    "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
+    "TSLA": "A+", "V": "A+", "MA": "A+", "LLY": "A+", "JNJ": "A+", "BRK.B": "A+", "PG": "B+", "KO": "B+",
     "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A",
-    "ISRG": "B+", "PG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+",
-    "ADBE": "B", "UBER": "B", "HOOD": "B", "DASH": "B", "BABA": "B", "CRWV": "B",
-    "TTD": "C", "LULU": "C", "CMG": "C", "DUOL": "C", "PDD": "C", "ORCL": "C",
-    "VOO": "ETF", "WBD": "Hold"
+    "ISRG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+", "ASTS": "B+", "EOSE": "B+",
+    "ADBE": "B", "UBER": "B", "HOOD": "B", "DASH": "B", "BABA": "B", "CRWV": "B", "MU": "B", "PATH": "C",
+    "TTD": "C", "LULU": "C", "CMG": "C", "DUOL": "C", "PDD": "C", "ORCL": "C", "WBD": "Hold",
+    "VOO": "ETF", "QQQM": "ETF"
 }
 
-# 2.3 แนวรับ-แนวต้านทางเทคนิค (อัปเดตใหม่ตามข้อมูลล่าสุด)
+# 2.3 แนวรับ-แนวต้านทางเทคนิค (Updated 16/12/2568)
 tech_levels = {
-    "AMZN": [230, 244, 216, 212], # ต้าน 1, ต้าน 2, รับ 1, รับ 2
+    # [NEW] Updated Levels
+    "AMZN": [230, 244, 216, 212], 
     "AAPL": [280, 288, 268, 260], 
     "GOOGL": [320, 330, 300, 288], 
     "NVDA": [182, 196, 173, 167], 
     "META": [675, 700, 640, 632], 
     "MSFT": [490, 505, 468, 457], 
-    "TSLA": [480, 500, 460, 445],
+    "TSLA": [480, 500, 460, 445], 
     "PLTR": [195, 205, 180, 175],
-    "AMD": [224, 238, 205, 199],
+    "AMD": [224, 238, 205, 199], 
     "AVGO": [350, 370, 335, 316],
     
-    # หุ้นอื่น ๆ ที่อยู่ในพอร์ต/Watchlist เดิม
+    # Others (Estimates or Previous)
     "TSM": [300, 310, 275, 268], 
     "LLY": [1100, 1150, 1000, 980],
     "V": [355, 365, 340, 330], 
     "VOO": [635, 650, 615, 600],
     "IREN": [50, 60, 38, 35],
-    "RKLB": [60, 65, 50, 45],
+    "RKLB": [60, 65, 50, 45], # Rocket Lab
     "UBER": [95, 100, 82, 78],
     "CDNS": [320, 330, 290, 280],
-    "WM": [230, 235, 215, 210] 
+    "WM": [230, 235, 215, 210],
+    "ASTS": [70, 75, 60, 55], # SpaceMobile
+    "EOSE": [15, 18, 12, 10], # Energy
+    "KO": [72, 75, 68, 65],
+    "PG": [150, 155, 140, 138]
 }
 
 # --- 3. ฟังก์ชันดึงราคา ---
@@ -100,22 +114,16 @@ def get_all_data(portfolio_data, watchlist_tickers):
     port_tickers = [item['Ticker'] for item in portfolio_data]
     all_tickers = list(set(port_tickers + watchlist_tickers))
     
-    # Mock Data for Context
+    # Mock Data (Based on your input for consistency)
     simulated_prices = {
-        # ใช้ราคาปัจจุบันจากข้อมูลที่ผู้ใช้ให้มา
-        "AMZN": 222.54,
-        "V": 346.89,
-        "LLY": 1062.19,
-        "NVDA": 176.29,
-        "VOO": 625.96,
-        "TSM": 287.14,
-        "IREN": 40.13, 
-        "RKLB": 55.41,
+        "AMZN": 222.54, "V": 346.89, "LLY": 1062.19, "NVDA": 176.29, "VOO": 625.96, "TSM": 287.14,
+        "PLTR": 183.25, "TSLA": 475.31, "RKLB": 55.41, "GOOGL": 308.22, "META": 647.51, "MSFT": 474.82,
+        "AMD": 207.58, "AVGO": 339.81, "IREN": 40.13, "ASTS": 67.81, "EOSE": 13.63, "PATH": 16.16, "WBD": 29.71
     }
 
     try:
         usd_thb_data = yf.Ticker("THB=X").history(period="1d")
-        usd_thb = usd_thb_data['Close'].iloc[-1] if not usd_thb_data.empty else 31.47 # ใช้ 31.47 ตามที่ผู้ใช้ระบุเป็น Default
+        usd_thb = usd_thb_data['Close'].iloc[-1] if not usd_thb_data.empty else 31.47
     except:
         usd_thb = 31.47
         
@@ -125,8 +133,11 @@ def get_all_data(portfolio_data, watchlist_tickers):
     for t in all_tickers:
         if t in simulated_prices:
             live_prices[t] = simulated_prices[t]
-            # ใช้ค่า 1.005 เป็นการจำลองราคาปิดก่อนหน้าให้เปลี่ยนแปลงเล็กน้อย
-            prev_closes[t] = simulated_prices[t] / 1.005 
+            # Simulate prev close for Day Change calculation
+            if t == "TSLA": prev_closes[t] = simulated_prices[t] / 1.0356 # +3.56%
+            elif t == "LLY": prev_closes[t] = simulated_prices[t] / 1.1044 # +10% example
+            elif t == "RKLB": prev_closes[t] = simulated_prices[t] / 0.9011 # -9.89%
+            else: prev_closes[t] = simulated_prices[t] 
         else:
             try:
                 hist = yf.Ticker(t).history(period="5d")
@@ -148,7 +159,6 @@ def get_all_data(portfolio_data, watchlist_tickers):
 # --- 4. ประมวลผล ---
 fetched_prices, prev_closes, exchange_rate = get_all_data(my_portfolio_data, my_watchlist_tickers)
 
-# 4.1 คำนวณพอร์ตหลัก
 df = pd.DataFrame(my_portfolio_data)
 df['Current Price'] = df['Ticker'].map(fetched_prices)
 df['Prev Close'] = df['Ticker'].map(prev_closes)
@@ -176,18 +186,18 @@ col_m2.metric("📈 Unrealized Gain", f"${total_gain_usd:,.2f}", f"Invested: ${t
 col_m3.metric("📅 Day Change", f"${total_day_change_usd:+.2f}", f"{(total_day_change_usd/total_invested_usd*100):+.2f}%")
 col_m4.metric("💱 THB/USD", f"{exchange_rate:.2f}", "Real-time")
 
-# Strategy Note (อัปเดตการวิเคราะห์กลยุทธ์ตามพอร์ตใหม่)
-with st.expander("🧠 Strategy Tuning: Sniper Portfolio 2025 (New Balanced Edition)", expanded=True):
+# [STRATEGY PRESERVED]
+with st.expander("🧠 Strategy Transformation: The Balanced Sniper (2025)", expanded=True):
     st.markdown("""
-    * **🔍 X-Ray Result (New Port):** พอร์ตนี้ **แข็งแกร่งและสมดุลขึ้นมาก**
-        * **God Tier (S+):** NVDA, TSM (หัวใจ AI)
-        * **AI Enabler (S):** AMZN (Cloud Backbone)
-        * **Quality Moat (A+):** V (Finance), LLY (Health) **✅ ช่วยลดความเสี่ยง Tech Concentration ได้ดีเยี่ยม**
-        * **Index Base:** VOO (S&P 500 ETF) **✅ สร้างฐานและลดความผันผวนของพอร์ต**
-    * **🛠️ Tuning Recommendation:**
-        1.  **Defense Secured:** การมี V และ VOO ถือเป็น **"Dividend/Defensive Quality"** ที่ดีตามที่บทความแนะนำแล้ว
-        2.  **Dime Tactic:** แบ่งเงินสด $400 ตามเดิม: $200 ไว้ **"DCA"** ตัวหลัก (S+/S) และ $200 เก็บไว้ **"Sniper"** (RKLB/UBER/IREN) เมื่อเข้าโซน Alert
-        3.  **Next Target:** สามารถมองหาหุ้น A Tier (Defensive Growth) อื่นๆ เช่น **WM** หรือ **NET** ได้อีกหากต้องการเพิ่มความนิ่ง
+    ### 🛡️ Portfolio Evolution (16 Dec 2025)
+    * **New Structure:** พอร์ตใหม่มีความสมดุลสูงมาก (High Balance) กระจายความเสี่ยงครบทุกมิติ
+        * **Growth Engine:** **NVDA, TSM** (AI Core), **AMZN** (Cloud/Infra)
+        * **Defensive Wall:** **V** (Finance), **LLY** (Health), **VOO** (S&P 500)
+    * **🎯 Sniper Watchlist (Next Steps):**
+        * **Space Race:** **RKLB, ASTS** (รอย่อตัวเพื่อเข้าสะสมด้วยเงินสด)
+        * **Energy/Infra:** **EOSE, IREN** (จับตาความผันผวน เพื่อหาจังหวะ Big Shot)
+        * **Physical AI:** **TSLA** (เฝ้าระวังที่แนวรับ $460/$445)
+    * **💡 Dime Tactic:** ใช้ข้อได้เปรียบของการซื้อเศษหุ้น ทยอยสะสมหุ้น A+/S Tier เมื่อเข้าโซน Alert โดยไม่ต้องกังวลราคาต่อหุ้น
     """)
 
 st.markdown("---")
@@ -275,18 +285,12 @@ with col_side:
         })
     
     df_watch = pd.DataFrame(watchlist_data)
-    
-    # Sort
     df_watch = df_watch.sort_values(by=["Signal", "Dist S1"], ascending=[True, True])
 
-    # Highlight Functions
     def highlight_row(s):
-        if "IN ZONE" in s['Signal']:
-            return ['background-color: rgba(40, 167, 69, 0.4)'] * len(s)
-        elif "ALERT" in s['Signal']:
-            return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
-        elif "PROFIT" in s['Signal']:
-            return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
+        if "IN ZONE" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.4)'] * len(s)
+        elif "ALERT" in s['Signal']: return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
+        elif "PROFIT" in s['Signal']: return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
         return [''] * len(s)
     
     def color_dist_s1(val):
