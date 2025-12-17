@@ -42,15 +42,17 @@ st.markdown("""
 
 # --- 2. Initialize Session State (Sniper Default Data) ---
 
-# 2.1 Portfolio Data (AAPL, PLTR, TSM, LLY)
+# 2.1 Portfolio Data (AMZN, NVDA, TSM, V ,LLY ,VOO)
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = [
-        {"Ticker": "AAPL", "Category": "Growth", "Avg Cost": 240.2191, "Qty": 0.6695555},
-        {"Ticker": "PLTR", "Category": "Growth", "Avg Cost": 170.1280, "Qty": 0.5868523},
-        {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 281.3780, "Qty": 0.3548252},
-        {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 908.8900, "Qty": 0.0856869},
+        {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
+        {"Ticker": "NVDA", "Category": "Growth", "Avg Cost": 178.7260, "Qty": 0.3351499},
+        {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 274.9960, "Qty": 0.1118198},
+        {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 330.2129, "Qty": 0.2419045},
+        {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 961.8167, "Qty": 0.0707723},
+        {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 628.1220, "Qty": 0.0614849},
     ]
-
+    
 # 2.2 Watchlist Data
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist = [
@@ -473,3 +475,4 @@ try:
 
 except Exception as e:
     st.error(f"System Error: {e}")
+
