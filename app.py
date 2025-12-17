@@ -4,8 +4,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-# --- 1. ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="ON The Moon Portfolio & Watchlist", page_icon="🔭", layout="wide")
+# --- 1. ตั้งค่าหน้าเว็บ (เปลี่ยนชื่อตามสั่ง) ---
+st.set_page_config(page_title="ON The Moon Portfolio & Sniper Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
@@ -40,9 +40,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Initialize Session State (Dime! Data Updated: 17/12/2025) ---
+# --- 2. Initialize Session State ---
 
-# 2.1 Portfolio Data (อิงตามรูป Dime!)
+# 2.1 Portfolio Data
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = [
         # Growth Engine
@@ -75,8 +75,7 @@ if 'weekly_note' not in st.session_state:
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
     st.header("💼 Wallet & Management")
-    # Default Cash for Dime! Port = 0.00
-    cash_balance_usd = st.number_input("Cash Flow ($)", value=0.00, step=10.0, format="%.2f")
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=00.00, step=10.0, format="%.2f")
     
     st.divider()
     
@@ -284,7 +283,8 @@ try:
         return [''] * len(s)
 
     # --- 8. UI Display ---
-    st.title("🔭 Sniper Portfolio & Watchlist") 
+    # [NEW TITLE]
+    st.title("🔭 ON The Moon Portfolio & Sniper Watchlist") 
     st.caption(f"Last Update (BKK Time): {target_date_str} | Data Source: Yahoo Finance")
 
     c1, c2, c3, c4 = st.columns(4)
@@ -373,14 +373,19 @@ try:
                 df_growth.style.format({
                     "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
                     "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
-                    "Upside": "{:+.1%}", "Buy Lv.1": "${:.0f}", "Sell Lv.1": "${:.0f}"
+                    "Upside": "{:+.1%}", 
+                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", # Added Buy Lv.2
+                    "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}" # Added Sell Lv.2
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1']),
-                column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "% P/L", "Current Price", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+                # Added columns to order
+                column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
                 column_config={
                     "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
-                    "Buy Lv.1": "Buy Lv.1", "Sell Lv.1": "Sell Lv.1", "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
+                    "Buy Lv.1": "Buy Lv.1", "Buy Lv.2": "Buy Lv.2", # Added Config
+                    "Sell Lv.1": "Sell Lv.1", "Sell Lv.2": "Sell Lv.2", # Added Config
+                    "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
                 },
                 hide_index=True, use_container_width=True
             )
@@ -395,14 +400,19 @@ try:
                 df_defensive.style.format({
                     "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
                     "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
-                    "Upside": "{:+.1%}", "Buy Lv.1": "${:.0f}", "Sell Lv.1": "${:.0f}"
+                    "Upside": "{:+.1%}", 
+                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", # Added Buy Lv.2
+                    "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}" # Added Sell Lv.2
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1']),
-                column_order=["Ticker", "Company", "Qty", "Avg Cost", "Total Cost", "% P/L", "Current Price", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+                # Added columns to order
+                column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
                 column_config={
                     "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
-                    "Buy Lv.1": "Buy Lv.1", "Sell Lv.1": "Sell Lv.1", "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
+                    "Buy Lv.1": "Buy Lv.1", "Buy Lv.2": "Buy Lv.2", # Added Config
+                    "Sell Lv.1": "Sell Lv.1", "Sell Lv.2": "Sell Lv.2", # Added Config
+                    "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
                 },
                 hide_index=True, use_container_width=True
             )
@@ -477,4 +487,3 @@ try:
 
 except Exception as e:
     st.error(f"System Error: {e}")
-
