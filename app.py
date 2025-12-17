@@ -74,7 +74,7 @@ if 'weekly_note' not in st.session_state:
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
     st.header("💼 Wallet & Management")
-    cash_balance_usd = st.number_input("Cash Flow ($)", value=90.00, step=10.0, format="%.2f")
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=0.00, step=10.0, format="%.2f")
     
     st.divider()
     
@@ -489,3 +489,4 @@ try:
 
 except Exception as e:
     st.error(f"System Error: {e}")
+
