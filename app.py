@@ -4,45 +4,26 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-# --- 1. ตั้งค่าหน้าเว็บ (เปลี่ยนชื่อตามสั่ง) ---
+# --- 1. ตั้งค่าหน้าเว็บ ---
 st.set_page_config(page_title="ON The Moon Portfolio & Sniper Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
 <style>
-    /* ปรับขนาดฟอนต์พื้นฐาน */
     html, body, [class*="css"] { font-size: 1.1rem; }
-
-    /* ตัวเลขการเงิน (Metrics) */
     [data-testid="stMetricValue"] { font-size: 3.2rem !important; font-weight: 900; }
     [data-testid="stMetricLabel"] { font-size: 1.3rem !important; }
-
-    /* หัวข้อ (Headers) */
-    h3 {
-        padding-top: 1rem;
-        border-bottom: 3px solid #444;
-        padding-bottom: 0.5rem;
-        font-size: 2.2rem !important;
-    }
-
-    /* Expander Text */
-    .streamlit-expanderContent p, .streamlit-expanderContent li, .stMarkdown p {
-        font-size: 1.2rem !important;
-    }
-
-    /* Table Width */
+    h3 { padding-top: 1rem; border-bottom: 3px solid #444; padding-bottom: 0.5rem; font-size: 2.2rem !important; }
+    .streamlit-expanderContent p, .streamlit-expanderContent li, .stMarkdown p { font-size: 1.2rem !important; }
     div[data-testid="stDataFrame"] { width: 100%; }
-    
     .stAlert { margin-top: 1rem; }
-    
-    /* Text Area Font */
     textarea { font-size: 1.1rem !important; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 2. Initialize Session State ---
 
-# 2.1 Portfolio Data
+# 2.1 Portfolio Data (อิงตามพอร์ตจริงของคุณ)
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = [
         # Growth Engine
@@ -55,12 +36,30 @@ if 'portfolio' not in st.session_state:
         {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 628.1220, "Qty": 0.0614849},
     ]
 
-# 2.2 Watchlist Data
+# 2.2 Watchlist Data (รวมรายชื่อจาก Heatmap YTD ทั้งหมด)
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist = [
+        # Existing
         "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
-        "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "KO", "PG", "WM", "UBER", "SCHD"
+        "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "UBER", "SCHD", "CDNS",
+        # Consumer Staples & Discretionary (จากภาพ)
+        "PG", "PM", "KO", "PEP", "MO", "NKE", "MNST", "MDLZ", "HSY", "EL", "KMB", "KVUE", "CL", "KHC", "CHD", 
+        "MCD", "BKNG", "MAR", "HLT", "CMG", "TKO", "CCL", "EXPE", "CMCSA", "ABNB", "SBUX", "RCL", "LVS", "LYV", "FOX", "FOXA", "YUM", "CHTR", "DRI",
+        # Tech & Software (จากภาพ)
+        "ORCL", "IBM", "INTU", "ACN", "NOW", "ADBE", "ADP", "SNPS", "CRM", "NFLX", "APP", "PANW", "FTNT", "EA", "TTD",
+        # Utilities & Energy (จากภาพ)
+        "NEE", "SO", "VST", "EXC", "TRGP", "ED", "WEC", "PCG", "NRG", "ATO", "DTE", "XEL", "DUK", "SRE", "ETR", "AEE", "FE", "PPL", "CNP", "CEG", "AWK", "EIX", "NI", "LNT", "AEP", "D", "PEG", "ES", "CMS", "EVRG",
+        # Industrials & Materials (จากภาพ)
+        "CAT", "DE", "TT", "MMM", "ITW", "LRCX", "ETN", "JCI", "AME", "ROK", "CARR", "AMAT", "GEV", "PH", "CMI", "PCAR",
+        "NEM", "FCX", "MLM", "VMC", "NUE", "STLD",
+        # Financials (จากภาพ)
+        "BRK.B", "WFC", "C", "PGR", "WELL", "PLD", "CB", "KKR", "HOOD", "IBKR", "CME", "MMC", "ICE", "APO", "MS", "BX", "BLK", "GS", "SCHW", "BK", "AXP", "COF", "AON", "SPG", "JPM", "BAC",
+        # Healthcare (จากภาพ)
+        "ABBV", "TMO", "DHR", "GILD", "PFE", "BSX", "VRTX", "BMY", "MRK", "ISRG", "SYK", "EW", "GEHC", "DXCM", "BIIB", "STE", "JNJ", "ABT", "AMGN", "MDT"
     ]
+    # Remove duplicates if any exist in Portfolio
+    portfolio_tickers = [item['Ticker'] for item in st.session_state.portfolio]
+    st.session_state.watchlist = list(set([x for x in st.session_state.watchlist if x not in portfolio_tickers]))
 
 # 2.3 Weekly Note Data
 if 'weekly_note' not in st.session_state:
@@ -75,7 +74,7 @@ if 'weekly_note' not in st.session_state:
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
     st.header("💼 Wallet & Management")
-    cash_balance_usd = st.number_input("Cash Flow ($)", value=00.00, step=10.0, format="%.2f")
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=90.00, step=10.0, format="%.2f")
     
     st.divider()
     
@@ -129,7 +128,7 @@ with st.sidebar:
                 st.warning(f"Removed {w_remove}.")
                 st.rerun()
 
-# --- 4. PRB Tier Mapping ---
+# --- 4. PRB Tier Mapping (Static) ---
 prb_tiers = {
     "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
     "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
@@ -155,13 +154,16 @@ try:
         data_dict = {}
         try:
             if not tickers_list: return {}
+            # Download data for all tickers
             df_hist = yf.download(tickers_list, period="2y", group_by='ticker', auto_adjust=True, threads=True)
         except Exception as e:
+            st.error(f"Data Download Error: {e}")
             return {}
 
         for ticker in tickers_list:
             try:
                 if len(tickers_list) > 1:
+                    if ticker not in df_hist.columns.levels[0]: continue # Skip if ticker not found
                     df_t = df_hist[ticker].copy()
                 else:
                     df_t = df_hist.copy()
@@ -283,7 +285,6 @@ try:
         return [''] * len(s)
 
     # --- 8. UI Display ---
-    # [NEW TITLE]
     st.title("🔭 ON The Moon Portfolio & Sniper Watchlist") 
     st.caption(f"Last Update (BKK Time): {target_date_str} | Data Source: Yahoo Finance")
 
@@ -374,17 +375,16 @@ try:
                     "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
                     "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
                     "Upside": "{:+.1%}", 
-                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", # Added Buy Lv.2
-                    "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}" # Added Sell Lv.2
+                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", 
+                    "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}" 
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1']),
-                # Added columns to order
                 column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
                 column_config={
-                    "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
-                    "Buy Lv.1": "Buy Lv.1", "Buy Lv.2": "Buy Lv.2", # Added Config
-                    "Sell Lv.1": "Sell Lv.1", "Sell Lv.2": "Sell Lv.2", # Added Config
+                    "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Gain ($)",
+                    "Buy Lv.1": "Buy Lv.1", "Buy Lv.2": "Buy Lv.2", 
+                    "Sell Lv.1": "Sell Lv.1", "Sell Lv.2": "Sell Lv.2", 
                     "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
                 },
                 hide_index=True, use_container_width=True
@@ -401,17 +401,16 @@ try:
                     "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
                     "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
                     "Upside": "{:+.1%}", 
-                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", # Added Buy Lv.2
-                    "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}" # Added Sell Lv.2
+                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", 
+                    "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}" 
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1']),
-                # Added columns to order
                 column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
                 column_config={
-                    "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
-                    "Buy Lv.1": "Buy Lv.1", "Buy Lv.2": "Buy Lv.2", # Added Config
-                    "Sell Lv.1": "Sell Lv.1", "Sell Lv.2": "Sell Lv.2", # Added Config
+                    "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Gain ($)",
+                    "Buy Lv.1": "Buy Lv.1", "Buy Lv.2": "Buy Lv.2", 
+                    "Sell Lv.1": "Sell Lv.1", "Sell Lv.2": "Sell Lv.2", 
                     "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
                 },
                 hide_index=True, use_container_width=True
@@ -424,7 +423,10 @@ try:
         st.subheader("🎯 Sniper Watchlist (Fractional Unlocked)")
         
         watchlist_data = []
-        for t in sorted(list(set(st.session_state.watchlist))): 
+        # Filter duplicates again just in case
+        clean_watchlist = sorted(list(set(st.session_state.watchlist)))
+        
+        for t in clean_watchlist: 
             data = market_data.get(t, {})
             price = data.get('Price', 0)
             prev = data.get('PrevClose', 0)
