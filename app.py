@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
+st.set_page_config(page_title="ON The Moon Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
@@ -40,24 +40,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Initialize Session State (Sniper Default Data) ---
+# --- 2. Initialize Session State (Dime! Data Updated: 17/12/2025) ---
 
-# 2.1 Portfolio Data (AMZN, NVDA, TSM, V ,LLY ,VOO)
+# 2.1 Portfolio Data (อิงตามรูป Dime!)
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = [
+        # Growth Engine
         {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
         {"Ticker": "NVDA", "Category": "Growth", "Avg Cost": 178.7260, "Qty": 0.3351499},
         {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 274.9960, "Qty": 0.1118198},
+        # Defensive Wall
         {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 330.2129, "Qty": 0.2419045},
         {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 961.8167, "Qty": 0.0707723},
         {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 628.1220, "Qty": 0.0614849},
     ]
-    
+
 # 2.2 Watchlist Data
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist = [
-        "AMZN", "NVDA", "V", "VOO", "GOOGL", "META", "MSFT", "TSLA", 
-        "WBD", "AMD", "AVGO", "IREN", "RKLB", "UBER", "CDNS", "WM"
+        "AAPL", "PLTR", "GOOGL", "META", "MSFT", "TSLA", "AMD", "AVGO", "SMH", "QQQ", "QQQM", "MU", "CRWD", "PATH",
+        "RKLB", "ASTS", "EOSE", "IREN", "WBD", "CRWV", "KO", "PG", "WM", "UBER", "SCHD"
     ]
 
 # 2.3 Weekly Note Data
@@ -73,8 +75,8 @@ if 'weekly_note' not in st.session_state:
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
     st.header("💼 Wallet & Management")
-    # Default Cash for Sniper Port = 400
-    cash_balance_usd = st.number_input("Cash Flow ($)", value=400.00, step=10.0, format="%.2f")
+    # Default Cash for Dime! Port = 90.00
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=90.00, step=10.0, format="%.2f")
     
     st.divider()
     
@@ -452,7 +454,7 @@ try:
                 .map(color_diff_s1_logic, subset=['Diff S1'])
                 .map(color_tier, subset=['Tier'])
                 .map(color_rsi, subset=['RSI'])
-                .map(color_text, subset=['Upside', '% Day']), # Applied color to % Day
+                .map(color_text, subset=['Upside', '% Day']), 
                 column_config={
                     "Display Signal": st.column_config.Column("Status", width="medium"),
                     "Tier": st.column_config.Column("Tier", width="small"),
@@ -475,4 +477,3 @@ try:
 
 except Exception as e:
     st.error(f"System Error: {e}")
-
