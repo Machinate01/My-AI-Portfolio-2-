@@ -78,7 +78,7 @@ try:
     port_tickers = [item['Ticker'] for item in st.session_state.portfolio]
     all_tickers = list(set(port_tickers + st.session_state.watchlist))
 
-    @st.cache_data(ttl=60)
+    @st.cache_data(ttl=300)
     def get_realtime_data(tickers_list):
         data_dict = {}
         if not tickers_list: return {}
@@ -241,3 +241,4 @@ try:
             )
 
 except Exception as e: st.error(f"Error: {e}")
+
