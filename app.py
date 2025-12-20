@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # --- 1. ตั้งค่าหน้าเว็บ ---
 st.set_page_config(page_title="My Portfolio & Sniper Watchlist", page_icon="🔭", layout="wide")
 
-# --- CSS ปรับแต่ง (คงรูปแบบเดิม) ---
+# --- CSS ปรับแต่ง ---
 st.markdown("""
 <style>
     html, body, [class*="css"] { font-size: 1.1rem; }
@@ -38,7 +38,7 @@ if 'watchlist' not in st.session_state:
 if 'weekly_note' not in st.session_state:
     st.session_state.weekly_note = """* **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**\n* **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ\n* **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**\n* **Event:** งบ **Micron (MU)** 🚨 *Highlight*\n* ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀\n* **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**\n* **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน"""
 
-# --- 3. Sidebar Settings ---
+# --- 3. Sidebar ---
 with st.sidebar:
     st.header("💼 Wallet & Management")
     cash_balance_usd = st.number_input("Cash Flow ($)", value=400.00, step=10.0, format="%.2f")
@@ -106,7 +106,7 @@ try:
         df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
         df['PrevClose'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('PrevClose', 0))
         df['Value USD'] = df['Qty'] * df['Current Price']
-        df['Total Cost'] = df['Qty'] * df['Avg Cost'] # Calculated for Requirement 2
+        df['Total Cost'] = df['Qty'] * df['Avg Cost']
         df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
         df['% P/L'] = (df['Current Price'] - df['Avg Cost']) / df['Avg Cost']
         df['Day Change USD'] = (df['Current Price'] - df['PrevClose']) * df['Qty']
@@ -136,10 +136,11 @@ try:
         if "ALERT" in str(s['Signal']): return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
         return [''] * len(s)
 
-    # Function for Requirement 1: Value ($) color matches Total Gain ($)
+    # Function: Color both Value AND Price based on Gain
     def style_portfolio_rows(row):
         color = '#28a745' if row['Total Gain USD'] >= 0 else '#dc3545'
-        return [f'color: {color}' if col == 'Value USD' else '' for col in row.index]
+        # Apply to both 'Value USD' and 'Current Price'
+        return [f'color: {color}' if col in ['Value USD', 'Current Price'] else '' for col in row.index]
 
     # --- 8. UI Display ---
     st.title("🔭 My Portfolio & Sniper Watchlist")
@@ -165,8 +166,8 @@ try:
     col_bot_left, col_bot_right = st.columns(2)
 
     # --- Left: Portfolio Tables ---
-    # Column Order: Avg Cost -> Total Cost | Swap Sell Lv.1 -> Buy Lv.2
-    port_cols = ["Ticker", "Qty", "Avg Cost", "Total Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Buy Lv.2"]
+    # Column Order Updated as per Requirement 1
+    port_cols = ["Ticker", "Qty", "Avg Cost", "Total Cost", "% P/L", "Current Price", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Buy Lv.2"]
     
     with col_bot_left:
         st.subheader("🚀 Growth Engine")
@@ -180,11 +181,15 @@ try:
                 })
                 .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
                 .map(color_diff_s1_logic, subset=['Diff S1'])
-                .apply(style_portfolio_rows, axis=1), # Apply Requirement 1
+                .apply(style_portfolio_rows, axis=1), # Apply Color Logic
                 column_order=port_cols,
                 column_config={
-                    "Current Price": "Price", "Total Cost": "Total Cost ($)", "% P/L": "% Total", 
-                    "Value USD": "Value ($)", "Buy Lv.2": st.column_config.Column("Buy Lv.2 (EMA200)", help="Deep Value Zone")
+                    "Current Price": "Price", # Requirement 4 applied here via style_portfolio_rows
+                    "Total Cost": "Total Cost ($)", 
+                    "% P/L": "% Total", 
+                    "Value USD": "Value ($)", 
+                    "Total Gain USD": "Total Gain ($)", # Requirement 2
+                    "Buy Lv.2": "Buy Lv.2" # Requirement 3
                 },
                 hide_index=True, use_container_width=True
             )
@@ -203,8 +208,12 @@ try:
                 .apply(style_portfolio_rows, axis=1),
                 column_order=port_cols,
                 column_config={
-                    "Current Price": "Price", "Total Cost": "Total Cost ($)", "% P/L": "% Total", 
-                    "Value USD": "Value ($)", "Buy Lv.2": st.column_config.Column("Buy Lv.2 (EMA200)", help="Deep Value Zone")
+                    "Current Price": "Price",
+                    "Total Cost": "Total Cost ($)", 
+                    "% P/L": "% Total", 
+                    "Value USD": "Value ($)", 
+                    "Total Gain USD": "Total Gain ($)", 
+                    "Buy Lv.2": "Buy Lv.2"
                 },
                 hide_index=True, use_container_width=True
             )
