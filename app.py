@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title=" Portfolio & Watchlist", page_icon="🔭", layout="wide")
+st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
@@ -44,17 +44,14 @@ st.markdown("""
 
 # 2.1 Portfolio Data (AAPL, PLTR, TSM, LLY)
 if 'portfolio' not in st.session_state:
-    st.session_state.portfolio = {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
-        {"Ticker": "NVDA", "Category": "Growth", "Avg Cost": 178.7260, "Qty": 0.3351499},
-        {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 274.9960, "Qty": 0.1118198},
-        {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 330.2129, "Qty": 0.2419045},
-        {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 961.8167, "Qty": 0.0707723},
-        {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 630.2559, "Qty": 0.2462174},
-    ]
+    st.session_state.portfolio = 
 
 # 2.2 Watchlist Data
 if 'watchlist' not in st.session_state:
-    st.session_state.watchlist =  ["AAPL", "GOOGL", "META", "MSFT", "TSLA", "WBD", "AMD", "AVGO", "IREN", "RKLB", "UBER", "CDNS", "WM","PLTR"]
+    st.session_state.watchlist = [
+        "AMZN", "NVDA", "V", "VOO", "GOOGL", "META", "MSFT", "TSLA", 
+        "WBD", "AMD", "AVGO", "IREN", "RKLB", "UBER", "CDNS", "WM"
+    ]
 
 # 2.3 Weekly Note Data
 if 'weekly_note' not in st.session_state:
@@ -469,6 +466,6 @@ try:
         else:
             st.info("Watchlist is empty.")
 
-
-
+except Exception as e:
+    st.error(f"System Error: {e}")
 
