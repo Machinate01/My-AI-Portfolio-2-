@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # --- 1. ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
+st.set_page_config(page_title=" Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
 # --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
 st.markdown("""
@@ -44,8 +44,7 @@ st.markdown("""
 
 # 2.1 Portfolio Data (AAPL, PLTR, TSM, LLY)
 if 'portfolio' not in st.session_state:
-    st.session_state.portfolio =  [
-        {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
+    st.session_state.portfolio = {"Ticker": "AMZN", "Category": "Growth", "Avg Cost": 228.0932, "Qty": 0.4157950},
         {"Ticker": "NVDA", "Category": "Growth", "Avg Cost": 178.7260, "Qty": 0.3351499},
         {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 274.9960, "Qty": 0.1118198},
         {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 330.2129, "Qty": 0.2419045},
@@ -53,14 +52,19 @@ if 'portfolio' not in st.session_state:
         {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 630.2559, "Qty": 0.2462174},
     ]
 
-
 # 2.2 Watchlist Data
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist =  ["AAPL", "GOOGL", "META", "MSFT", "TSLA", "WBD", "AMD", "AVGO", "IREN", "RKLB", "UBER", "CDNS", "WM","PLTR"]
 
 # 2.3 Weekly Note Data
 if 'weekly_note' not in st.session_state:
-    st.session_state.weekly_note = """* 
+    st.session_state.weekly_note = """* **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
+    * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ
+* **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**
+    * **Event:** งบ **Micron (MU)** 🚨 *Highlight*
+    * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
+* **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**
+    * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน"""
 
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
