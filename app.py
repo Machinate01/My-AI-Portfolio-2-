@@ -469,6 +469,6 @@ try:
         else:
             st.info("Watchlist is empty.")
 
-except Exception as e:
-    st.error(f"System Error: {e}")
+
+
 
