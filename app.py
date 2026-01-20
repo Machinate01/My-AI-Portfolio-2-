@@ -1,353 +1,479 @@
-import React, { useState, useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { Activity, TrendingUp, User, Database, Upload, ArrowUpDown, Zap, Wallet, CreditCard, RefreshCw, Clock, Target } from 'lucide-react';
+import streamlit as st
+import pandas as pd
+import yfinance as yf
+from datetime import datetime, timedelta
+import plotly.graph_objects as go
 
-// สีธีม
-const PIE_COLORS = ['#00f2ff', '#7000ff', '#ff00c8', '#00ff41', '#ffea00', '#ff5e00'];
+# --- 1. ตั้งค่าหน้าเว็บ ---
+st.set_page_config(page_title="Sniper Portfolio & Watchlist", page_icon="🔭", layout="wide")
 
-const App = () => {
-  const [initialData, setInitialData] = useState([]);
-  const [displayData, setDisplayData] = useState([]);
-  const [fileName, setFileName] = useState("เลือกไฟล์ CSV");
-  const [sortConfig, setSortConfig] = useState({ key: 'Weight_Percent', direction: 'desc' });
-  const [lastUpdated, setLastUpdated] = useState(null);
+# --- CSS ปรับแต่ง (Big Font Edition 🔍) ---
+st.markdown("""
+<style>
+    /* ปรับขนาดฟอนต์พื้นฐาน */
+    html, body, [class*="css"] { font-size: 1.1rem; }
 
-  // --- CSV Parsing ---
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setFileName(file.name);
+    /* ตัวเลขการเงิน (Metrics) */
+    [data-testid="stMetricValue"] { font-size: 3.2rem !important; font-weight: 900; }
+    [data-testid="stMetricLabel"] { font-size: 1.3rem !important; }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target.result;
-      const lines = text.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      const parsed = lines.slice(1).filter(l => l).map(line => {
-        const values = line.split(',');
-        return headers.reduce((obj, header, i) => {
-          const val = values[i]?.trim();
-          obj[header] = isNaN(val) ? val : parseFloat(val);
-          return obj;
-        }, {});
-      });
-
-      // Enrich Data
-      const enriched = parsed.map(item => {
-        let cat = item.Category ? item.Category.toUpperCase() : 'SATELLITE';
-        if (!item.Category) {
-           const sym = item.Symbol.toUpperCase();
-           if (['VOO','V','SCHD','IVV','LLY'].includes(sym)) cat = 'CORE';
-           if (['CASH','USD'].includes(sym)) cat = 'CASH';
-        }
-        
-        const shares = parseFloat(item.Shares) || 0;
-        const totalCost = parseFloat(item.Total_Cost_USD) || 0;
-        const currentPrice = parseFloat(item.Current_Price_USD) || 0;
-        const marketValue = shares * currentPrice;
-
-        return {
-          ...item,
-          Category: cat,
-          Shares: shares,
-          Current_Price_USD: currentPrice,
-          Cost_Per_Share_USD: shares > 0 ? totalCost / shares : 0,
-          Total_Cost_USD: totalCost,
-          Asset_Value_USD: marketValue,
-          Gain_USD: marketValue - totalCost,
-          Gain_Percent: totalCost > 0 ? ((marketValue - totalCost) / totalCost) * 100 : 0,
-          
-          // Technical Data
-          Target_Price: parseFloat(item.Target_Price) || 0,
-          Support_S1: parseFloat(item.Support_S1) || 0,
-          RSI: parseFloat(item.RSI) || 50,
-          EMA50: parseFloat(item.EMA50) || 0,
-          EMA200: parseFloat(item.EMA200) || 0
-        };
-      });
-
-      setInitialData(enriched);
-      setDisplayData(enriched);
-      setLastUpdated(new Date());
-    };
-    reader.readAsText(file);
-  };
-
-  // --- Manual Refresh ---
-  const refreshMarketData = () => {
-    if (initialData.length === 0) return;
-    const updated = initialData.map(item => {
-      if (item.Category === 'CASH') return item;
-      const change = (Math.random() - 0.5) * 0.02; 
-      const newPrice = item.Current_Price_USD * (1 + change);
-      const newMarketValue = item.Shares * newPrice;
-      const newGainUSD = newMarketValue - item.Total_Cost_USD;
-      return {
-        ...item,
-        Current_Price_USD: newPrice,
-        Asset_Value_USD: newMarketValue,
-        Gain_USD: newGainUSD,
-        Gain_Percent: item.Total_Cost_USD > 0 ? (newGainUSD / item.Total_Cost_USD) * 100 : 0
-      };
-    });
-    setDisplayData(updated);
-    setLastUpdated(new Date());
-  };
-
-  // --- Sorting ---
-  const sortedData = useMemo(() => {
-    let items = [...displayData];
-    if (sortConfig.key) {
-      items.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
+    /* หัวข้อ (Headers) */
+    h3 {
+        padding-top: 1rem;
+        border-bottom: 3px solid #444;
+        padding-bottom: 0.5rem;
+        font-size: 2.2rem !important;
     }
-    return items;
-  }, [displayData, sortConfig]);
 
-  const requestSort = (key) => {
-    setSortConfig(prev => ({ 
-      key, 
-      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc' 
-    }));
-  };
+    /* Expander Text */
+    .streamlit-expanderContent p, .streamlit-expanderContent li, .stMarkdown p {
+        font-size: 1.2rem !important;
+    }
 
-  // --- Stats ---
-  const stats = useMemo(() => {
-    if (displayData.length === 0) return { totalValue: 0, totalGain: 0, gainPercent: 0, cash: 0, coreWeight: 0, satWeight: 0 };
-    const totalVal = displayData.reduce((acc, curr) => acc + (curr.Asset_Value_USD || 0), 0);
-    const totalCost = displayData.reduce((acc, curr) => acc + (curr.Total_Cost_USD || 0), 0);
-    const totalG = totalVal - totalCost;
-
-    const cashObj = displayData.find(d => d.Category === 'CASH');
-    const cashVal = cashObj ? cashObj.Asset_Value_USD : 0;
-    const investableValue = totalVal - cashVal;
+    /* Table Width */
+    div[data-testid="stDataFrame"] { width: 100%; }
     
-    const coreVal = displayData.filter(d => d.Category === 'CORE').reduce((acc, curr) => acc + curr.Asset_Value_USD, 0);
-    const satVal = displayData.filter(d => d.Category === 'SATELLITE').reduce((acc, curr) => acc + curr.Asset_Value_USD, 0);
+    .stAlert { margin-top: 1rem; }
+    
+    /* Text Area Font */
+    textarea { font-size: 1.1rem !important; font-family: monospace; }
+</style>
+""", unsafe_allow_html=True)
 
-    return {
-      totalValue: totalVal,
-      totalGain: totalG,
-      gainPercent: totalCost > 0 ? (totalG / totalCost) * 100 : 0,
-      cash: cashVal,
-      coreWeight: investableValue > 0 ? (coreVal / investableValue) * 100 : 0,
-      satWeight: investableValue > 0 ? (satVal / investableValue) * 100 : 0
-    };
-  }, [displayData]);
+# --- 2. Initialize Session State (Sniper Default Data) ---
 
-  return (
-    <div className="min-h-screen bg-[#05050a] text-gray-100 font-sans p-6 lg:p-10 selection:bg-cyan-500/30">
-      <div className="fixed inset-0 pointer-events-none -z-10">
-        <div className="absolute top-[-20%] right-[-10%] w-[1000px] h-[1000px] bg-cyan-500/5 blur-[180px] rounded-full mix-blend-screen"></div>
-        <div className="absolute bottom-[-20%] left-[-10%] w-[1000px] h-[1000px] bg-purple-600/5 blur-[180px] rounded-full mix-blend-screen"></div>
-      </div>
+# 2.1 Portfolio Data (AAPL, PLTR, TSM, LLY)
+if 'portfolio' not in st.session_state:
+    st.session_state.portfolio = [
+        {Ticker"": ""AMZN"", ""Category"": ""Growth"", ""Avg Cost"": 228.0932, ""Qty"": 0.4157950},"
+        {"Ticker": "NVDA", "Category": "Growth", "Avg Cost": 178.7260, "Qty": 0.3351499},
+        {"Ticker": "TSM",  "Category": "Growth", "Avg Cost": 274.9960, "Qty": 0.1118198},
+        {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 330.2129, "Qty": 0.2419045},
+        {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 961.8167, "Qty": 0.0707723},
+        {"Ticker": "VOO",  "Category": "Defensive", "Avg Cost": 630.2559, "Qty": 0.2462174},
+    ]
 
-      <div className="max-w-[2000px] mx-auto space-y-8">
+
+# 2.2 Watchlist Data
+if 'watchlist' not in st.session_state:
+    st.session_state.watchlist =  [
+        "AAPL", "GOOGL", "META", "MSFT", "TSLA", "WBD", "AMD", "AVGO", "IREN", "RKLB", "UBER", "CDNS", "WM","PLTR"
+    ]
+
+
+# 2.3 Weekly Note Data
+if 'weekly_note' not in st.session_state:
+    st.session_state.weekly_note = """* **วันอังคาร 16 ธ.ค.: "วัดชีพจรผู้บริโภค"**
+    * **AMZN & V:** ถ้า Retail ต่ำกว่า +0.3% หรือ Nonfarm แย่ = ลบ
+* **วันพุธ 17 ธ.ค.: "ชี้ชะตา AI (ภาค Hardware)"**
+    * **Event:** งบ **Micron (MU)** 🚨 *Highlight*
+    * ถ้า "ดีมานด์ AI ล้น" → **NVDA & TSM** พุ่ง 🚀
+* **วันพฤหัส 18 ธ.ค.: "เงินเฟ้อ & AI (ภาคใช้งาน)"**
+    * **CPI > 3.1%:** เงินเฟ้อมา → Tech (NVDA/AMZN) ร่วงก่อน"""
+
+# --- 3. Sidebar Settings & Management ---
+with st.sidebar:
+    st.header("💼 Wallet & Management")
+    # Default Cash for Sniper Port = 400
+    cash_balance_usd = st.number_input("Cash Flow ($)", value=400.00, step=10.0, format="%.2f")
+    
+    st.divider()
+    
+    tab_add, tab_remove = st.tabs(["➕ Add Asset", "🗑️ Remove/Sell"])
+    
+    with tab_add:
+        st.subheader("Add to Portfolio")
+        with st.form("add_port"):
+            p_ticker = st.text_input("Ticker (e.g. MSFT)").upper()
+            p_qty = st.number_input("Qty", min_value=0.0001, format="%.4f")
+            p_cost = st.number_input("Avg Cost", min_value=0.0, format="%.2f")
+            p_cat = st.selectbox("Category", ["Growth", "Defensive"])
+            if st.form_submit_button("Add Position"):
+                if p_ticker:
+                    st.session_state.portfolio.append({
+                        "Ticker": p_ticker, "Category": p_cat, "Avg Cost": p_cost, "Qty": p_qty
+                    })
+                    if p_ticker in st.session_state.watchlist:
+                        st.session_state.watchlist.remove(p_ticker)
+                    st.success(f"Added {p_ticker}!")
+                    st.rerun()
+
+        st.subheader("Add to Watchlist")
+        with st.form("add_watch"):
+            w_ticker = st.text_input("Ticker").upper()
+            if st.form_submit_button("Add Watchlist"):
+                if w_ticker and w_ticker not in st.session_state.watchlist:
+                    st.session_state.watchlist.append(w_ticker)
+                    st.success(f"Added {w_ticker}!")
+                    st.rerun()
+
+    with tab_remove:
+        st.subheader("Sell / Remove Position")
+        current_holdings = [f"{item['Ticker']} ({item['Category']})" for item in st.session_state.portfolio]
+        if current_holdings:
+            to_remove = st.selectbox("Select Position to Remove", current_holdings)
+            if st.button("🗑️ Confirm Remove Position"):
+                ticker_to_remove = to_remove.split(" ")[0]
+                st.session_state.portfolio = [x for x in st.session_state.portfolio if x['Ticker'] != ticker_to_remove]
+                st.warning(f"Removed {ticker_to_remove} from Portfolio.")
+                st.rerun()
+        else:
+            st.info("Portfolio is empty.")
+
+        st.divider()
+        st.subheader("Remove from Watchlist")
+        if st.session_state.watchlist:
+            w_remove = st.selectbox("Select Ticker", st.session_state.watchlist)
+            if st.button("🗑️ Confirm Remove Watchlist"):
+                st.session_state.watchlist.remove(w_remove)
+                st.warning(f"Removed {w_remove}.")
+                st.rerun()
+
+# --- 4. PRB Tier Mapping ---
+prb_tiers = {
+    "NVDA": "S+", "AAPL": "S+", "MSFT": "S+", "GOOGL": "S+", "TSM": "S+", "ASML": "S+",
+    "AMD": "S", "PLTR": "S", "AMZN": "S", "META": "S", "AVGO": "S", "CRWD": "S", "SMH": "S", "QQQ": "ETF",
+    "TSLA": "A+", "V": "A+", "MA": "A+", "LLY": "A+", "JNJ": "A+", "BRK.B": "A+", "PG": "B+", "KO": "B+",
+    "NFLX": "A", "WM": "A", "WMT": "A", "CEG": "A", "NET": "A", "PANW": "A", "SCHD": "A", "CDNS": "S",
+    "ISRG": "B+", "RKLB": "B+", "TMDX": "B+", "IREN": "B+", "MELI": "B+", "ASTS": "B+", "EOSE": "B+",
+    "ADBE": "B", "UBER": "B", "HOOD": "B", "DASH": "B", "BABA": "B", "CRWV": "B", "MU": "B", "PATH": "C",
+    "TTD": "C", "LULU": "C", "CMG": "C", "DUOL": "C", "PDD": "C", "ORCL": "C", "WBD": "Hold",
+    "VOO": "ETF", "QQQM": "ETF"
+}
+
+# --- 5. Data Fetching ---
+try:
+    now = datetime.utcnow() + timedelta(hours=7) 
+    target_date_str = now.strftime("%d %B %Y %H:%M:%S")
+
+    port_tickers = [item['Ticker'] for item in st.session_state.portfolio]
+    watchlist_tickers = st.session_state.watchlist
+    all_tickers = list(set(port_tickers + watchlist_tickers))
+
+    @st.cache_data(ttl=60, show_spinner="Fetching Real-time Market Data...") 
+    def get_realtime_data(tickers_list):
+        data_dict = {}
+        try:
+            if not tickers_list: return {}
+            df_hist = yf.download(tickers_list, period="2y", group_by='ticker', auto_adjust=True, threads=True)
+        except Exception as e:
+            return {}
+
+        for ticker in tickers_list:
+            try:
+                if len(tickers_list) > 1:
+                    df_t = df_hist[ticker].copy()
+                else:
+                    df_t = df_hist.copy()
+
+                df_t = df_t.dropna()
+                if df_t.empty or len(df_t) < 200:
+                    data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
+                    continue
+
+                current_price = df_t['Close'].iloc[-1]
+                prev_close = df_t['Close'].iloc[-2]
+                
+                df_t['EMA50'] = df_t['Close'].ewm(span=50, adjust=False).mean()
+                df_t['EMA200'] = df_t['Close'].ewm(span=200, adjust=False).mean()
+                
+                delta = df_t['Close'].diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                df_t['RSI'] = 100 - (100 / (1 + rs))
+
+                df_t['SMA20'] = df_t['Close'].rolling(window=20).mean()
+                df_t['STD20'] = df_t['Close'].rolling(window=20).std()
+                sell_r1 = (df_t['SMA20'] + (df_t['STD20'] * 2)).iloc[-1] 
+                sell_r2 = df_t['Close'].iloc[-252:].max()
+
+                data_dict[ticker] = {
+                    "Price": current_price, "PrevClose": prev_close,
+                    "EMA50": df_t['EMA50'].iloc[-1], "EMA200": df_t['EMA200'].iloc[-1], 
+                    "RSI": df_t['RSI'].iloc[-1], "Sell1": sell_r1, "Sell2": sell_r2
+                }
+            except:
+                data_dict[ticker] = {"Price": 0, "PrevClose": 0, "EMA50": 0, "EMA200": 0, "RSI": 50, "Sell1": 0, "Sell2": 0}
+                
+        return data_dict
+
+    if st.button('🔄 Refresh Data (Real-time)'):
+        st.cache_data.clear()
+        st.rerun()
+
+    market_data = get_realtime_data(all_tickers)
+
+    # --- 6. Data Processing ---
+    df = pd.DataFrame(st.session_state.portfolio)
+    
+    if not df.empty:
+        df['Current Price'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('Price', 0))
+        df['PrevClose'] = df['Ticker'].apply(lambda x: market_data.get(x, {}).get('PrevClose', 0))
         
-        {/* HEADER */}
-        <header className="bg-[#11111e]/90 border border-white/10 rounded-[2rem] p-8 shadow-2xl backdrop-blur-xl">
-           <div className="flex flex-col xl:flex-row justify-between items-center gap-8">
-              <div className="flex items-center gap-8 min-w-[300px]">
-                <div className="p-5 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-3xl border border-cyan-400/40">
-                  <User size={48} className="text-cyan-400" />
-                </div>
-                <div>
-                  <h1 className="text-3xl lg:text-4xl font-black text-white mb-2">GOLF'S TERMINAL</h1>
-                  <div className="flex items-center gap-3 text-gray-400 text-sm">
-                    <Clock size={16} />
-                    <p className="font-mono tracking-widest uppercase">
-                      Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : '--:--:--'}
-                    </p>
-                  </div>
-                </div>
-              </div>
+        df['Value USD'] = df['Qty'] * df['Current Price']
+        df['Total Cost'] = df['Qty'] * df['Avg Cost']
+        df['Total Gain USD'] = df['Value USD'] - df['Total Cost']
+        df['% P/L'] = ((df['Current Price'] - df['Avg Cost']) / df['Avg Cost']) 
+        df['Day Change USD'] = (df['Current Price'] - df['PrevClose']) * df['Qty']
+        df['%Day Change'] = ((df['Current Price'] - df['PrevClose']) / df['PrevClose']) if df['PrevClose'].sum() > 0 else 0
 
-              <div className="flex gap-4">
-                 <button onClick={refreshMarketData} className="flex items-center gap-2 bg-cyan-500/10 hover:bg-cyan-500 hover:text-white border border-cyan-500/40 text-cyan-400 px-6 py-4 rounded-xl transition-all group">
-                    <RefreshCw size={24} className="group-hover:rotate-180 transition-transform duration-500" />
-                    <span className="font-bold uppercase tracking-wider text-sm">Refresh</span>
-                 </button>
-                 <label className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-4 rounded-xl cursor-pointer transition-all group">
-                    <Upload size={24} className="text-gray-400 group-hover:text-white" />
-                    <div><span className="block text-xs text-gray-500 uppercase">Source</span><span className="block text-base font-bold text-white">{fileName}</span></div>
-                    <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-                 </label>
-              </div>
-           </div>
+        def get_levels_series(ticker, price):
+            data = market_data.get(ticker, {})
+            buy1 = data.get('EMA50', 0)
+            buy2 = data.get('EMA200', 0)
+            sell1 = data.get('Sell1', 0)
+            sell2 = data.get('Sell2', 0)
+            
+            diff_s1 = (price - buy1) / buy1 if buy1 > 0 else 0
+            upside = (sell1 - price) / price if price > 0 else 0
+            
+            return pd.Series([buy1, buy2, sell1, sell2, diff_s1, upside], 
+                            index=['Buy Lv.1', 'Buy Lv.2', 'Sell Lv.1', 'Sell Lv.2', 'Diff S1', 'Upside'])
 
-           {/* METRICS */}
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10 border-t border-white/5 pt-10">
-              <div className="relative">
-                 <div className="flex items-center gap-3 mb-2 text-gray-400"><Wallet size={24} /><span className="text-sm font-bold uppercase tracking-widest">Equity</span></div>
-                 <div className="text-7xl font-black text-white tracking-tighter">${stats.totalValue.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-              </div>
-              <div className="relative border-l border-white/10 pl-8">
-                 <div className="flex items-center gap-3 mb-2 text-gray-400"><TrendingUp size={24} /><span className="text-sm font-bold uppercase tracking-widest">P/L</span></div>
-                 <div className={`text-7xl font-black tracking-tighter ${stats.totalGain >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-                    {stats.totalGain >= 0 ? '+' : ''}{stats.gainPercent.toFixed(2)}%
-                 </div>
-              </div>
-              <div className="relative border-l border-white/10 pl-8">
-                 <div className="flex items-center gap-3 mb-2 text-gray-400"><CreditCard size={24} /><span className="text-sm font-bold uppercase tracking-widest">Cash</span></div>
-                 <div className="text-6xl font-black text-white tracking-tighter">${stats.cash.toLocaleString()}</div>
-                 <div className="mt-4 flex gap-1 h-3 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div className="bg-cyan-500" style={{ width: `${stats.coreWeight}%` }}></div>
-                    <div className="bg-purple-500" style={{ width: `${stats.satWeight}%` }}></div>
-                 </div>
-              </div>
-           </div>
-        </header>
+        tech_cols = df.apply(lambda x: get_levels_series(x['Ticker'], x['Current Price']), axis=1)
+        df = pd.concat([df, tech_cols], axis=1)
 
-        {/* CONTENT */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-3 space-y-8">
-             <div className="bg-[#11111e] border border-white/5 rounded-[2rem] p-8 h-[400px]">
-                <h2 className="text-base font-bold text-gray-400 uppercase tracking-widest mb-6 flex gap-3"><Activity size={20} className="text-cyan-400"/> Allocation</h2>
-                <ResponsiveContainer width="100%" height="85%">
-                  <PieChart>
-                    <Pie data={displayData.filter(d => d.Category !== 'CASH')} dataKey="Asset_Value_USD" nameKey="Symbol" cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={4} stroke="none">
-                      {displayData.filter(d => d.Category !== 'CASH').map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#05050a', border: '1px solid #333' }} />
-                    <Legend verticalAlign="bottom" wrapperStyle={{fontSize:'12px'}}/>
-                  </PieChart>
-                </ResponsiveContainer>
-             </div>
-             
-             <div className="bg-[#11111e] border border-white/5 rounded-[2rem] p-8 h-[400px]">
-                <h2 className="text-base font-bold text-gray-400 uppercase tracking-widest mb-6 flex gap-3"><Zap size={20} className="text-purple-400"/> Gainers</h2>
-                <ResponsiveContainer width="100%" height="85%">
-                  <BarChart data={[...displayData].filter(d=>d.Category!=='CASH').sort((a,b) => b.Gain_Percent - a.Gain_Percent).slice(0,5)} layout="vertical" margin={{ left: 5 }}>
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="Symbol" type="category" width={50} tick={{fill: '#fff', fontSize: 14, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-                    <Bar dataKey="Gain_Percent" fill="#00f2ff" radius={[0, 6, 6, 0]} barSize={24}>
-                      {displayData.filter(d=>d.Category!=='CASH').map((entry, index) => <Cell key={`bar-${index}`} fill={entry.Gain_Percent >= 0 ? '#10b981' : '#ef4444'} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-             </div>
-          </div>
+        total_value = df['Value USD'].sum() + cash_balance_usd
+        total_gain = df['Total Gain USD'].sum()
+        total_day_change = df['Day Change USD'].sum()
+        total_invested = df['Total Cost'].sum()
+    else:
+        total_value = cash_balance_usd
+        total_gain = 0
+        total_day_change = 0
+        total_invested = 0
 
-          {/* TABLE - TECHNICAL ANALYSIS */}
-          <div className="lg:col-span-9 bg-[#11111e] border border-white/5 rounded-[2rem] p-8 flex flex-col">
-             <div className="flex justify-between items-center mb-8">
-               <h2 className="text-2xl font-bold text-white uppercase tracking-widest flex gap-3">
-                  <Database size={28} className="text-gray-500"/> Tactical Inventory
-               </h2>
-               <div className="flex gap-4 text-xs uppercase font-bold text-gray-500">
-                  <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span> BUY/DISCOUNT</span>
-                  <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-cyan-400"></span> BULL/UPTREND</span>
-               </div>
-             </div>
-             
-             <div className="overflow-x-auto">
-               <table className="w-full text-left border-collapse">
-                 <thead className="text-sm uppercase tracking-widest text-gray-500 border-b-2 border-white/10">
-                   <tr>
-                     <th className="pb-6 pl-4 cursor-pointer hover:text-white" onClick={() => requestSort('Symbol')}>Asset <ArrowUpDown size={12} className="inline opacity-50"/></th>
-                     <th className="pb-6 text-right">Price</th>
-                     <th className="pb-6 text-center">RSI (14)</th>
-                     <th className="pb-6 text-center">Trend Signals (EMA)</th>
-                     <th className="pb-6 text-right">Diff S1 (%)</th>
-                     <th className="pb-6 text-right">Upside %</th>
-                     <th className="pb-6 text-center">PNL</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-white/5 font-mono text-base">
-                   {sortedData.map((asset, idx) => {
-                      if (asset.Category === 'CASH') return null;
-                      const isProfit = asset.Gain_Percent >= 0;
-                      
-                      const upside = asset.Target_Price > 0 ? ((asset.Target_Price - asset.Current_Price_USD) / asset.Current_Price_USD) * 100 : 0;
-                      const diffS1 = asset.Support_S1 > 0 ? ((asset.Current_Price_USD - asset.Support_S1) / asset.Support_S1) * 100 : 0;
-                      
-                      const isRsiBuy = asset.RSI <= 30;
-                      const isRsiSell = asset.RSI >= 70;
+    # --- 7. Styling Functions ---
+    def color_text(val):
+        if isinstance(val, (int, float)): return 'color: #28a745' if val >= 0 else 'color: #dc3545'
+        return ''
+    
+    def color_diff_s1_logic(val):
+        if isinstance(val, (int, float)):
+            if val < 0: return 'color: #28a745; font-weight: bold;' 
+            elif 0 <= val <= 0.02: return 'color: #90EE90;' 
+            else: return 'color: #dc3545;' 
+        return ''
 
-                      // EMA Logic: โชว์ทุกสถานะ
-                      const statusEMA50 = asset.EMA50 > 0 ? (asset.Current_Price_USD > asset.EMA50 ? "BULL" : "DISCOUNT") : "N/A";
-                      const statusEMA200 = asset.EMA200 > 0 ? (asset.Current_Price_USD > asset.EMA200 ? "BULL" : "DISCOUNT") : "N/A";
+    def color_rsi(val):
+        try:
+            v = float(val)
+            if v >= 70: return 'color: #dc3545; font-weight: bold;'
+            if v <= 30: return 'color: #28a745; font-weight: bold;'
+        except: pass
+        return ''
 
-                      return (
-                        <tr key={idx} className="hover:bg-white/5 transition-colors group text-lg">
-                          <td className="py-6 pl-4">
-                            <div className="flex items-center gap-4">
-                               <div className={`w-1.5 h-10 rounded-full ${asset.Category === 'CORE' ? 'bg-cyan-500' : 'bg-purple-500'}`}></div>
-                               <div>
-                                 <span className="block font-black text-white text-xl">{asset.Symbol}</span>
-                                 <span className="block text-xs font-bold text-gray-500 uppercase">{asset.Category}</span>
-                               </div>
-                            </div>
-                          </td>
-                          <td className="py-6 text-right font-bold text-white text-xl">
-                             ${(asset.Current_Price_USD || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </td>
-                          
-                          {/* RSI */}
-                          <td className="py-6 text-center">
-                             <span className={`px-3 py-1 rounded-lg font-bold text-sm ${isRsiBuy ? 'bg-green-500 text-black shadow-[0_0_10px_#22c55e]' : isRsiSell ? 'bg-red-500 text-white' : 'text-gray-400 bg-white/5'}`}>
-                                {asset.RSI.toFixed(0)}
-                             </span>
-                          </td>
+    def format_arrow(val):
+        symbol = "⬆️" if val > 0 else "⬇️" if val < 0 else "➖"
+        return f"{val:+.2%} {symbol}"
 
-                          {/* Trend Signals (Show Always) */}
-                          <td className="py-6 text-center">
-                             <div className="flex flex-col gap-2 items-center">
-                                {/* EMA 50 */}
-                                {statusEMA50 !== "N/A" && (
-                                   <div className={`flex justify-between w-24 px-2 py-0.5 rounded text-xs font-bold border ${statusEMA50 === 'BULL' ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400' : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'}`}>
-                                      <span>EMA50</span>
-                                      <span>{statusEMA50}</span>
-                                   </div>
-                                )}
-                                {/* EMA 200 */}
-                                {statusEMA200 !== "N/A" && (
-                                   <div className={`flex justify-between w-24 px-2 py-0.5 rounded text-xs font-bold border ${statusEMA200 === 'BULL' ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-green-500/30 bg-green-500/10 text-green-400'}`}>
-                                      <span>EMA200</span>
-                                      <span>{statusEMA200}</span>
-                                   </div>
-                                )}
-                             </div>
-                          </td>
+    def color_tier(val):
+        if val == "S+": return 'color: #ffd700; font-weight: bold;' 
+        if val == "S": return 'color: #c0c0c0; font-weight: bold;' 
+        if "A" in str(val): return 'color: #cd7f32; font-weight: bold;' 
+        return ''
 
-                          {/* Diff S1 */}
-                          <td className="py-6 text-right">
-                             <span className={`font-bold ${diffS1 < 5 ? 'text-yellow-400' : 'text-gray-400'}`}>
-                                {diffS1.toFixed(2)}%
-                             </span>
-                             <div className="text-xs text-gray-600">from ${asset.Support_S1}</div>
-                          </td>
+    def highlight_row(s):
+        try:
+            if "IN ZONE" in str(s['Signal']): return ['background-color: rgba(40, 167, 69, 0.4)'] * len(s)
+            elif "ALERT" in str(s['Signal']): return ['background-color: rgba(40, 167, 69, 0.2)'] * len(s)
+            elif "PROFIT" in str(s['Signal']): return ['background-color: rgba(220, 53, 69, 0.2)'] * len(s)
+        except: pass
+        return [''] * len(s)
 
-                          {/* Upside % */}
-                          <td className="py-6 text-right">
-                             <div className="flex items-center justify-end gap-2">
-                                <Target size={16} className="text-cyan-500/50" />
-                                <span className="font-bold text-cyan-400 text-lg">+{upside.toFixed(1)}%</span>
-                             </div>
-                             <div className="text-xs text-gray-600">TP: ${asset.Target_Price}</div>
-                          </td>
+    # --- 8. UI Display ---
+    st.title("🔭 Sniper Portfolio & Watchlist") 
+    st.caption(f"Last Update (BKK Time): {target_date_str} | Data Source: Yahoo Finance")
 
-                          {/* PNL */}
-                          <td className="py-6 px-4 text-center">
-                              <span className={`block font-black text-lg ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
-                                {isProfit ? '+' : ''}{asset.Gain_Percent?.toFixed(2)}%
-                              </span>
-                              <span className="text-xs text-gray-500 font-bold">${Math.abs(asset.Gain_USD).toFixed(0)}</span>
-                          </td>
-                        </tr>
-                      );
-                   })}
-                 </tbody>
-               </table>
-             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("💰 Total Value (USD)", f"${total_value:,.2f}", f"≈฿{total_value*33:,.0f}")
+    c2.metric("🌊 Cash Flow", f"${cash_balance_usd:,.2f}", "Ready to Sniper")
+    c3.metric("📈 Unrealized G/L", f"${total_gain:,.2f}", f"Invested: ${total_invested:,.0f}")
+    c4.metric("📅 Day Change", f"${total_day_change:+.2f}", f"{(total_day_change/total_invested*100) if total_invested else 0:+.2f}%")
 
-export default App;
+    st.markdown("---")
+
+    col_mid_left, col_mid_right = st.columns([2, 1])
+    with col_mid_left:
+        st.subheader("ℹ️ Info") 
+        with st.expander("🧠 Strategy: EMA Indicator & Diff S1 & RSI Coloring", expanded=False):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown("""
+                **📊 EMA Indicator Levels (Real-time):**
+                * **Buy Lv.1 (EMA 50):** จุดเข้าซื้อตามเทรนด์ (Sniper Zone)
+                * **Buy Lv.2 (EMA 200):** จุดรับของถูก (Deep Value / Floor)
+                * **Sell Lv.1:** Upper Bollinger Band (แนวต้านระยะสั้น)
+                * **Sell Lv.2:** 52-Week High (จุดสูงสุดเดิม)
+                """)
+            with c2:
+                st.markdown("""
+                **🎯 วิธีอ่านค่า Diff S1 แบบ Sniper:**
+                * **ค่าติดลบ (< 0%):** ✅ **IN ZONE** (ของถูก) - **สีเขียวเข้ม**
+                * **ค่าบวกเล็กน้อย (0% ถึง +2.0%):** 🟢 **ALERT** (เตรียมยิง) - **สีเขียวอ่อน**
+                * **ค่าบวกเยอะๆ (> +2.0%):** ➖ **Wait** (แพงไป) - **สีแดง**
+                """)
+            with c3:
+                st.markdown("""
+                **🎨 RSI Coloring:**
+                * **< 30:** **สีเขียว** (Oversold / น่าซื้อ)
+                * **> 70:** **สีแดง** (Overbought / น่าขาย)
+                """)
+        
+        with st.expander("📅 Weekly Analysis & Notes : https://web.facebook.com/chaodoi.diary : ปฏิทินข้อมูลเศรษฐกิจที่สำคัญและการรายงานผลประกอบการที่น่าสนใจในสัปดาห์นี้", expanded=True):
+            tab_view, tab_edit = st.tabs(["👁️ View", "✏️ Edit"])
+            
+            with tab_view:
+                st.markdown(st.session_state.weekly_note)
+            
+            with tab_edit:
+                st.info("คุณสามารถแก้ไข เพิ่ม หรือลบข้อความวิเคราะห์ได้ที่นี่ครับ")
+                new_note = st.text_area("Note Editor:", value=st.session_state.weekly_note, height=250)
+                if st.button("💾 Save Notes"):
+                    st.session_state.weekly_note = new_note
+                    st.success("บันทึกข้อมูลเรียบร้อย!")
+                    st.rerun()
+
+    with col_mid_right:
+        st.subheader("📊 Asset Allocation (Including Cash)")
+        
+        if not df.empty:
+            labels = list(df['Ticker']) + ['CASH 💵']
+            values = list(df['Value USD']) + [cash_balance_usd]
+        else:
+            labels = ['CASH 💵']
+            values = [cash_balance_usd]
+
+        colors = ['#333333', '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
+        
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=labels, values=values, hole=.5, marker_colors=colors, 
+            textinfo='label+percent', textposition='inside', textfont=dict(size=16, color='white')
+        )])
+        fig_pie.update_layout(
+            margin=dict(t=20, b=20, l=20, r=20), height=350, showlegend=True,
+            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=14)),
+            annotations=[dict(text=f'Total<br><b>${total_value:,.0f}</b>', x=0.5, y=0.5, font_size=24, showarrow=False)]
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    st.markdown("---")
+
+    col_bot_left, col_bot_right = st.columns(2) 
+
+    # --- LEFT SIDE: Portfolio (Filtered by Category) ---
+    with col_bot_left:
+        # Growth Engine
+        st.subheader("🚀 Growth Engine") 
+        if not df.empty:
+            df_growth = df[df['Category'] == 'Growth'].copy()
+            st.dataframe(
+                df_growth.style.format({
+                    "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
+                    "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
+                    "Upside": "{:+.1%}", "Buy Lv.1": "${:.0f}", "Sell Lv.1": "${:.0f}"
+                })
+                .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
+                .map(color_diff_s1_logic, subset=['Diff S1']),
+                column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+                column_config={
+                    "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
+                    "Buy Lv.1": "Buy Lv.1", "Sell Lv.1": "Sell Lv.1", "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
+                },
+                hide_index=True, use_container_width=True
+            )
+        else:
+            st.info("No Growth stocks.")
+
+        # Defensive Wall
+        st.subheader("🛡️ Defensive Wall") 
+        if not df.empty:
+            df_defensive = df[df['Category'] == 'Defensive'].copy()
+            st.dataframe(
+                df_defensive.style.format({
+                    "Qty": "{:.4f}", "Avg Cost": "${:.2f}", "Total Cost": "${:,.2f}", "Current Price": "${:.2f}",
+                    "Diff S1": "{:+.1%}", "% P/L": format_arrow, "Value USD": "${:,.2f}", "Total Gain USD": "${:,.2f}",
+                    "Upside": "{:+.1%}", "Buy Lv.1": "${:.0f}", "Sell Lv.1": "${:.0f}"
+                })
+                .map(color_text, subset=['% P/L', 'Total Gain USD', 'Upside'])
+                .map(color_diff_s1_logic, subset=['Diff S1']),
+                column_order=["Ticker", "Qty", "Avg Cost", "Current Price", "% P/L", "Value USD", "Total Gain USD", "Upside", "Diff S1", "Buy Lv.1", "Sell Lv.1"],
+                column_config={
+                    "Current Price": "Price", "% P/L": "% Total", "Value USD": "Value ($)", "Total Gain USD": "Total Gain ($)",
+                    "Buy Lv.1": "Buy Lv.1", "Sell Lv.1": "Sell Lv.1", "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1")
+                },
+                hide_index=True, use_container_width=True
+            )
+        else:
+            st.info("No Defensive stocks.")
+
+    # --- RIGHT SIDE: Watchlist ---
+    with col_bot_right:
+        st.subheader("🎯 Sniper Watchlist (Fractional Unlocked)")
+        
+        watchlist_data = []
+        for t in sorted(list(set(st.session_state.watchlist))): 
+            data = market_data.get(t, {})
+            price = data.get('Price', 0)
+            prev = data.get('PrevClose', 0)
+            pct_change = (price - prev) / prev if prev > 0 else 0
+            
+            buy1 = data.get('EMA50', 0)
+            sell1 = data.get('Sell1', 0)
+            rsi = data.get('RSI', 50)
+            
+            diff_s1 = (price - buy1)/buy1 if buy1 > 0 else 9.99
+            upside = (sell1 - price)/price if price > 0 else 0
+            
+            signal = "4. Wait" 
+            if diff_s1 < 0 and price > 0: signal = "1. ✅ IN ZONE"
+            elif 0 <= diff_s1 <= 0.02 and price > 0: signal = "2. 🟢 ALERT"
+            elif price >= sell1: signal = "5. 🔴 PROFIT"
+            else: signal = "3. ➖ Wait"
+            
+            watchlist_data.append({
+                "Tier": prb_tiers.get(t, "-"), "Ticker": t, "Price": price, "% Day": pct_change, "Signal": signal, 
+                "Diff S1": diff_s1, "RSI": rsi, "Upside": upside,
+                "Buy Lv.1": data.get('EMA50', 0), "Buy Lv.2": data.get('EMA200', 0), 
+                "Sell Lv.1": data.get('Sell1', 0), "Sell Lv.2": data.get('Sell2', 0),
+                "Display Signal": signal.split(". ")[1] 
+            })
+        
+        df_watch = pd.DataFrame(watchlist_data)
+        if not df_watch.empty:
+            df_watch = df_watch.sort_values(by=["Signal", "Diff S1"], ascending=[True, True])
+
+            st.dataframe(
+                df_watch.style.format({
+                    "Price": "${:.2f}", "% Day": format_arrow, "Diff S1": "{:+.1%}", "RSI": "{:.0f}", "Upside": "{:+.1%}",
+                    "Buy Lv.1": "${:.0f}", "Buy Lv.2": "${:.0f}", "Sell Lv.1": "${:.0f}", "Sell Lv.2": "${:.0f}"
+                })
+                .apply(highlight_row, axis=1)
+                .map(color_diff_s1_logic, subset=['Diff S1'])
+                .map(color_tier, subset=['Tier'])
+                .map(color_rsi, subset=['RSI'])
+                .map(color_text, subset=['Upside']), 
+                column_config={
+                    "Display Signal": st.column_config.Column("Status", width="medium"),
+                    "Tier": st.column_config.Column("Tier", width="small"),
+                    "Ticker": st.column_config.Column("Symbol", width="small"),
+                    "Price": st.column_config.Column("Price", width="small"),
+                    "% Day": st.column_config.Column("% Day", width="small"),
+                    "Diff S1": st.column_config.Column("Diff S1", help="Distance to EMA 50"),
+                    "Upside": st.column_config.Column("Upside", help="Gap to Sell Lv.1"),
+                    "RSI": st.column_config.Column("RSI", help="RSI (14)"),
+                    "Buy Lv.1": st.column_config.Column("Buy (EMA50)"),
+                    "Buy Lv.2": st.column_config.Column("Buy (EMA200)"),
+                    "Sell Lv.1": st.column_config.Column("Sell (R1)"),
+                    "Sell Lv.2": st.column_config.Column("Sell (R2)"),
+                },
+                column_order=["Display Signal", "Tier", "Ticker", "Price", "% Day", "Upside", "Diff S1", "RSI", "Buy Lv.1", "Buy Lv.2", "Sell Lv.1", "Sell Lv.2"],
+                hide_index=True, use_container_width=True
+            )
+        else:
+            st.info("Watchlist is empty.")
+
+except Exception as e:
+    st.error(f"System Error: {e}")
+
