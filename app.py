@@ -51,7 +51,7 @@ if 'portfolio' not in st.session_state:
         {"Ticker": "V",    "Category": "Defensive", "Avg Cost": 320.7531, "Qty": 0.6881929},
         {"Ticker": "LLY",  "Category": "Defensive", "Avg Cost": 956.1977, "Qty": 0.1679151},
         {"Ticker": "XOM",  "Category": "Growth", "Avg Cost": 164.1200, "Qty": 0.2785767},
-        {"Ticker": "GC=f",  "Category": "Defensive", "Avg Cost": 5,010.5000, "Qty": 0.0332},
+        {"Ticker": "GC=f",  "Category": "Defensive", "Avg Cost": 5010.5000, "Qty": 0.0332},
         {"Ticker": "GOOGL",  "Category": "Growth", "Avg Cost": 300.3056, "Qty": 0.2653297},
     ]
 
