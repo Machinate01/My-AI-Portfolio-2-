@@ -65,7 +65,7 @@ if 'watchlist' not in st.session_state:
 
 # 2.3 Weekly Note Data
 if 'weekly_note' not in st.session_state:
-    st.session_state.weekly_note = 
+    st.session_state.weekly_note = ""  # ใส่ค่าว่างไว้ก่อน เพื่อไม่ให้เกิด Error
 
 # --- 3. Sidebar Settings & Management ---
 with st.sidebar:
